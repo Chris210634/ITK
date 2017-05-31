@@ -187,6 +187,15 @@ protected:
   // a simple decorated object.
   virtual void GenerateOutputInformation() ITK_OVERRIDE;
 
+  /** Read results from other parallel processes from file. */
+  virtual void ReadProcessDataFromFile() ITK_OVERRIDE;
+  
+  /** Write results from ThreadedGenerate Data to file. */
+  virtual void WriteProcessDataToFile() ITK_OVERRIDE;
+
+  /** This image filter is process parallelized, so return true. */
+  virtual bool IsProcessParallelized() const ITK_OVERRIDE;
+
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(BinaryFunctorImageFilter);
 

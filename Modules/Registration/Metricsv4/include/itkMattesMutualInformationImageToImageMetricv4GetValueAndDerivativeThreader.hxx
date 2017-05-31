@@ -476,6 +476,31 @@ MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomai
   this->m_MattesAssociate->ComputeResults();
 }
 
+template< typename TDomainPartitioner, typename TImageToImageMetric, typename TMattesMutualInformationMetric >
+void
+MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TMattesMutualInformationMetric >
+::ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId)
+{
+  Superclass::ReadValueAndDerivativeFromFile(is,threadId);
+  this->m_MattesAssociate->ReadValueAndDerivativeFromFile(is,threadId);
+}
+
+template< typename TDomainPartitioner, typename TImageToImageMetric, typename TMattesMutualInformationMetric >
+void
+MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TMattesMutualInformationMetric >
+::WriteValueAndDerivativeToFile(std::ostream& os, const ThreadIdType threadId) const
+{
+  Superclass::WriteValueAndDerivativeToFile(os,threadId);
+  this->m_MattesAssociate->WriteValueAndDerivativeToFile(os,threadId);
+}
+
+template< typename TDomainPartitioner, typename TImageToImageMetric, typename TMattesMutualInformationMetric >
+bool
+MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TMattesMutualInformationMetric >
+::IsProcessParallelized() const
+{
+  return true;
+}
 } // end namespace itk
 
 #endif

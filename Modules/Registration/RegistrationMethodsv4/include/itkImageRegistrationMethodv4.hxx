@@ -29,6 +29,7 @@
 #include "itkMattesMutualInformationImageToImageMetricv4.h"
 #include "itkMersenneTwisterRandomVariateGenerator.h"
 #include "itkRegistrationParameterScalesFromPhysicalShift.h"
+#include <fstream>
 
 namespace itk
 {
@@ -128,6 +129,12 @@ ImageRegistrationMethodv4<TFixedImage, TMovingImage, TTransform, TVirtualImage, 
   this->m_MetricSamplingStrategy = NONE;
   this->m_MetricSamplingPercentagePerLevel.SetSize( this->m_NumberOfLevels );
   this->m_MetricSamplingPercentagePerLevel.Fill( 1.0 );
+
+#ifdef ITK_USE_PARALLEL_PROCESSES
+  this->MetricSamplingReinitializeSeed();
+  MultiThreader::Sync((char*)(&this->m_RandomSeed),sizeof(this->m_RandomSeed));
+  this->MetricSamplingReinitializeSeed(this->m_RandomSeed);
+#endif
 }
 
 template<typename TFixedImage, typename TMovingImage, typename TTransform, typename TVirtualImage, typename TPointSet>

@@ -287,8 +287,11 @@ ImageTransformer< TInputImage >
   // Set up the multithreaded processing
   ThreadStruct str;
   str.Filter = this;
-
+#ifndef ITK_USE_PARALLEL_PROCESSES
   this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
+#else
+  this->GetMultiThreader()->SetNumberOfThreads(1);
+#endif
   this->GetMultiThreader()->SetSingleMethod(this->ThreaderCallback, &str);
 
   // multithread the execution

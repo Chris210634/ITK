@@ -141,6 +141,15 @@ protected:
    * control to the ThreadFunctor. */
   static ITK_THREAD_RETURN_TYPE ThreaderCallback( void *arg );
 
+  /** Reads results from other processes from file. */
+  virtual void ReadProcessDataFromFile(){}
+  
+  /** Writes results from current process's ThreadedExecution to file.*/
+  virtual void WriteProcessDataToFile(){}
+  
+  /** Return true if current process is process parallelized. */
+  virtual bool IsProcessParallelized() const;
+
   AssociateType * m_Associate;
 
 private:

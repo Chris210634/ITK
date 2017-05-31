@@ -23,6 +23,7 @@
 #include "itkImageRegionConstIteratorWithIndex.h"
 #include "itkImageRegionIterator.h"
 #include "itkVectorLinearInterpolateImageFunction.h"
+#include <fstream>
 
 namespace itk
 {
@@ -131,6 +132,68 @@ ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
 {
   Superclass::PrintSelf( os, indent );
   itkPrintSelfObjectMacro( Interpolator );
+}
+
+template<typename InputImage, typename TOutputImage>
+void
+ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
+::ReadProcessDataFromFile()
+{
+  OutputFieldType *outputPtr = this->GetOutput();
+  typename TOutputImage::RegionType outputRegionForThread;
+  PixelType pixval;
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+
+  /* read results from parallel processes */
+  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
+    {
+    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
+    std::ifstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, i);
+    this->SplitRequestedRegion(i, numThreadsUsed, outputRegionForThread);
+    typedef ImageRegionIterator< TOutputImage > OutputIterator;
+    OutputIterator outIt(outputPtr, outputRegionForThread);
+    while ( !outIt.IsAtEnd() )
+      {
+      ifs.read((char*)(&pixval),sizeof(pixval));
+      outIt.Set(pixval);
+      ++outIt;
+      }
+    ifs.close();
+    }
+}
+
+template<typename InputImage, typename TOutputImage>
+void
+ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
+::WriteProcessDataToFile()
+{
+  typename TOutputImage::RegionType outputRegionForThread;
+  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+  this->SplitRequestedRegion(threadId, numThreadsUsed, outputRegionForThread);
+  OutputFieldType *outputPtr = this->GetOutput();
+  PixelType pixval;
+
+  std::ofstream ofs;
+  this->GetMultiThreader()->GetOfstream(ofs, threadId);
+  typedef ImageRegionIterator< TOutputImage > OutputIterator;
+  OutputIterator outIt(outputPtr, outputRegionForThread);
+  while ( !outIt.IsAtEnd() )
+    {
+    pixval = outIt.Get();
+    ofs.write((char*)(&pixval),sizeof(pixval));
+    ++outIt;
+    }
+  ofs.close();
+}
+
+template<typename InputImage, typename TOutputImage>
+bool
+ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
+::IsProcessParallelized() const
+{
+  return true;
 }
 
 }  //end namespace itk

@@ -22,7 +22,6 @@
 
 namespace itk
 {
-
 template< typename TDomainPartitioner, typename TAssociate >
 DomainThreader< TDomainPartitioner, TAssociate >
 ::DomainThreader()
@@ -67,6 +66,54 @@ DomainThreader< TDomainPartitioner, TAssociate >
     }
 }
 
+#ifdef ITK_USE_PARALLEL_PROCESSES
+template< typename TDomainPartitioner, typename TAssociate >
+void
+DomainThreader< TDomainPartitioner, TAssociate >
+::Execute( TAssociate * enclosingClass, const DomainType & completeDomain )
+{
+  this->m_Associate = enclosingClass;
+  this->m_CompleteDomain = completeDomain;
+
+  this->DetermineNumberOfThreadsUsed();
+
+  // This function will set number of threads correctly if process parallelized.
+  this->BeforeThreadedExecution();
+
+  if ( this -> IsProcessParallelized() )
+    {
+    // This calls ThreadedExecution in each thread.
+    this->StartThreadingSequence();
+
+    // This communicates the data from current process to other processes.
+    if (this->GetMultiThreader()->GetThreadNumber() < this->m_NumberOfThreadsUsed)
+      {
+      this->WriteProcessDataToFile();
+      }
+
+    // Wait for other processes to finish
+    this->GetMultiThreader()->Barrier();
+
+    // Read data from other processes
+    this->ReadProcessDataFromFile();
+
+    // Wait for all parallel processes to catch up.
+    // This prevents one process to overwrite its data file before 
+    // all other processes get a chance to read it.
+    this->GetMultiThreader()->Barrier();
+
+    this->AfterThreadedExecution();
+    }
+  else
+    {
+    /* Not processs parallelized */
+    this->GetMultiThreader()->SetNumberOfThreads(1);
+    this->StartThreadingSequence();
+    this->AfterThreadedExecution();
+    }
+}
+
+#else
 template< typename TDomainPartitioner, typename TAssociate >
 void
 DomainThreader< TDomainPartitioner, TAssociate >
@@ -83,6 +130,15 @@ DomainThreader< TDomainPartitioner, TAssociate >
   this->StartThreadingSequence();
 
   this->AfterThreadedExecution();
+}
+#endif
+
+template< typename TDomainPartitioner, typename TAssociate >
+bool
+DomainThreader< TDomainPartitioner, TAssociate >
+::IsProcessParallelized() const
+{
+  return false;
 }
 
 template< typename TDomainPartitioner, typename TAssociate >

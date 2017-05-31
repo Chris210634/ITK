@@ -115,6 +115,21 @@ protected:
                              const PDFValueType &            cubicBSplineDerivativeValue,
                              DerivativeValueType *           localSupportDerivativeResultPtr) const;
 
+  /** Reimplement Superclass::ReadValueAndDerivativeFromFile
+    * to read results specific to Mattes MI metric. 
+    */
+  virtual void ReadValueAndDerivativeFromFile(std::istream& is, 
+                                              const ThreadIdType threadId) ITK_OVERRIDE;
+
+  /** Reimplement Superclass::WriteValueAndDerivativeToFile 
+    * to write results specific to Mattes MI metric. 
+    */
+  virtual void WriteValueAndDerivativeToFile(std::ostream& os, 
+                                             const ThreadIdType threadId) const ITK_OVERRIDE;
+  
+  /* Let DomainThreader know this process is process parallelized. */
+  virtual bool IsProcessParallelized() const ITK_OVERRIDE;
+
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader);
 

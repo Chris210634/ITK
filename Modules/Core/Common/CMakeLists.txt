@@ -5,6 +5,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake ${CMAKE_MODULE_PATH})
 # enough to distinguish available features of the toolkit.
 set(ITK_VERSION_STRING "${ITK_VERSION_MAJOR}.${ITK_VERSION_MINOR}")
 
+#include_directories(include)
+
 include(TestBigEndian)
 test_big_endian(CMAKE_WORDS_BIGENDIAN)
 

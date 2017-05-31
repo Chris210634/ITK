@@ -280,6 +280,9 @@ protected:
     const ScanParametersType &scanParameters, DerivativeType &deriv,
     MeasureType &local_cc, const ThreadIdType threadId) const;
 
+  /** Let DomainThreader know this is process parallelized. */
+  virtual bool IsProcessParallelized() const ITK_OVERRIDE;
+
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(ANTSNeighborhoodCorrelationImageToImageMetricv4GetValueAndDerivativeThreader);
 

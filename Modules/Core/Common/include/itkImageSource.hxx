@@ -224,6 +224,66 @@ ImageSource< TOutputImage >
 }
 
 //----------------------------------------------------------------------------
+#ifdef ITK_USE_PARALLEL_PROCESSES
+template< typename TOutputImage >
+void
+ImageSource< TOutputImage >
+::GenerateData()
+{
+  // Call a method that can be overriden by a subclass to allocate
+  // memory for the filter's outputs
+  this->AllocateOutputs();
+
+  // Call a method that can be overridden by a subclass to perform
+  // some calculations prior to splitting the main computations into
+  // separate threads
+  this->BeforeThreadedGenerateData();
+
+  // Set up the multithreaded processing
+  ThreadStruct str;
+  str.Filter = this;
+  this->GetMultiThreader()->SetSingleMethod(this->ThreaderCallback, &str);
+
+  if ( this -> IsProcessParallelized() )
+    {
+    // Determine how many threads will be used.
+    const OutputImageType *outputPtr = this->GetOutput();
+    const ImageRegionSplitterBase * splitter = this->GetImageRegionSplitter();
+    const unsigned int validThreads = splitter->GetNumberOfSplits( outputPtr->GetRequestedRegion(), this->GetNumberOfThreads() );
+    this->GetMultiThreader()->SetNumberOfThreads( validThreads );
+
+    // This calls ThreadedGenerateData in each thread.
+    this->GetMultiThreader()->SingleMethodExecute();
+
+    // This communicates the data from current process to other processes.
+    if (this->GetMultiThreader()->GetThreadNumber() < validThreads)
+      {
+      this->WriteProcessDataToFile();
+      }
+
+    // Wait for other processes to finish
+    this->GetMultiThreader()->Barrier();
+
+    // Read data from other processes
+    this->ReadProcessDataFromFile();
+
+    // Wait for all parallel processes to catch up.
+    // This prevents one process to overwrite its data file before 
+    // all other processes get a chance to read it.
+    this->GetMultiThreader()->Barrier();
+
+    this->AfterThreadedGenerateData();
+    }
+  else
+    {
+    /* Not processs parallelized */
+    this->GetMultiThreader()->SetNumberOfThreads(1);
+    this->GetMultiThreader()->SingleMethodExecute();
+    this->AfterThreadedGenerateData();
+    }
+}
+
+#else
 template< typename TOutputImage >
 void
 ImageSource< TOutputImage >
@@ -256,6 +316,16 @@ ImageSource< TOutputImage >
   // Call a method that can be overridden by a subclass to perform
   // some calculations after all the threads have completed
   this->AfterThreadedGenerateData();
+}
+#endif
+
+//----------------------------------------------------------------------------
+template< typename TOutputImage >
+bool
+ImageSource< TOutputImage >
+::IsProcessParallelized() const
+{
+  return false;
 }
 
 //----------------------------------------------------------------------------

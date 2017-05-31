@@ -33,6 +33,7 @@
 #include "itkIntTypes.h"
 
 #include "itkThreadPool.h"
+#include <iostream>
 
 namespace itk
 {
@@ -50,6 +51,30 @@ namespace itk
  * pthread_create() will be used to create multiple threads (on
  * a sun, for example).
  * \ingroup ITKCommon
+ *
+ * If ITK_USE_PARALLEL_PROCESS is defined, then this class performs 
+ * process-parallelized execution.
+ *
+ * Prerequisites are for process paralelized execution are that 
+ * ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS is defined in every process. 
+ * The appropriate number of processes must be launched,
+ * each with ITK_PROCESS_NUMBER defined, (between 0 and number
+ * of processes). Process #0 must be launched first, since it initiates the 
+ * appropriate files in the shared directory. However, if the appropriate files
+ * are initiated before ITK is run, then any process can run first. 
+ * The number of processes is constant throughout execution. Each process is 
+ * single threaded.
+ * 
+ * Each process updates two files: the barrier file and the data file,
+ * whose names can be defined using environmental variables 
+ * ITK_BARRIER_FILE_PREFIX and ITK_DATA_FILE_PREFIX, respectively. 
+ * These default to /tmp/itktmp and /tmp/itkhold. The process number
+ * is appended to the file prefix. The barrier file synchronizes timing 
+ * of the processes by storing the stage number of the process. The data 
+ * file contains results from parallel execution that needs to be read 
+ * by other parallel processes.
+ *
+ * Threading is nor supported in process parallelized build.
  */
 
 class ITKCommon_EXPORT MultiThreader : public Object
@@ -82,19 +107,26 @@ public:
   static void SetGlobalMaximumNumberOfThreads(ThreadIdType val);
   static ThreadIdType  GetGlobalMaximumNumberOfThreads();
 
+#ifdef ITK_USE_PARALLEL_PROCESSES
+  /** This function configures the file prefixes and thread number.
+    * If thread number is invalid, the process exits. */
+  static void ConfigureStaticMembers();
+#endif
+
+#ifndef ITK_USE_PARALLEL_PROCESSES
   /** Set/Get whether to use the to use the thread pool
    * implementation or the spawing implementation of
    * starting threads.
    */
   static void SetGlobalDefaultUseThreadPool( const bool GlobalDefaultUseThreadPool );
   static bool GetGlobalDefaultUseThreadPool( );
+#endif
 
   /** Set/Get the value which is used to initialize the NumberOfThreads in the
    * constructor.  It will be clamped to the range [1, m_GlobalMaximumNumberOfThreads ].
    * Therefore the caller of this method should check that the requested number
    * of threads was accepted. */
   static void SetGlobalDefaultNumberOfThreads(ThreadIdType val);
-
   static ThreadIdType  GetGlobalDefaultNumberOfThreads();
 
   /** Execute the SingleMethod (as define by SetSingleMethod) using
@@ -120,6 +152,7 @@ public:
    * field of the ThreadInfoStruct that is passed to it will be data. */
   void SetMultipleMethod(ThreadIdType index, ThreadFunctionType, void *data);
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
   /** Create a new thread for the given function. Return a thread id
      * which is a number between 0 and ITK_MAX_THREADS - 1. This
    * id should be used to kill the thread at a later time. */
@@ -142,6 +175,102 @@ public:
   itkSetMacro(UseThreadPool,bool);
   /** Get the UseThreadPool flag*/
   itkGetMacro(UseThreadPool,bool);
+
+  /** Declare functions from Process Parallelized MultiThreader
+   *  so that everything compiles. */
+  static ThreadProcessIdType GetThreadNumber()
+    {
+    std::cerr << "itk::MultiThreader::GetThreadNumber is not implemented. Exiting ... \n";
+    exit(1);
+    return (ThreadProcessIdType)(0);
+    };
+  static void GetIfstream(std::ifstream & itkNotUsed(is), ThreadProcessIdType itkNotUsed(threadHandle))
+    {
+    std::cerr << "itk::MultiThreader::GetIfstream is not implemented. Exiting ... \n";
+    exit(1);
+    };
+  static void GetOfstream(std::ofstream & itkNotUsed(os), ThreadProcessIdType itkNotUsed(threadHandle))
+    {
+    std::cerr << "itk::MultiThreader::GetOfstream is not implemented. Exiting ... \n";
+    exit(1);
+    };
+  static void ProcessDone(ThreadProcessIdType itkNotUsed(threadHandle))
+    {
+    std::cerr << "itk::MultiThreader::ProcessDone is not implemented. Exiting ... \n";
+    exit(1);
+    };
+  static void Barrier()
+    {
+    std::cerr << "itk::MultiThreader::Barrier is not implemented. Exiting ... \n";
+    exit(1);
+    };
+  static void Sync(char * itkNotUsed(data), std::size_t itkNotUsed(len))
+    {
+    std::cerr << "itk::MultiThreader::Sync is not implemented. Exiting ... \n";
+    exit(1);
+    };
+  static void Exit()
+    {
+    std::cerr << "itk::MultiThreader::Exit is not implemented. Exiting ... \n";
+    exit(1);
+    };
+
+#else
+  /** get the Process number assigned to this process by 
+    * environmental variable ITK_PROCESS_NUMBER. */
+  static ThreadProcessIdType GetThreadNumber();
+
+  /** Set input file stream is to read from data file of process #threadHandle. */
+  static void GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle);
+
+  /** Set output file stream os to write to data file of process #threadHandle. */
+  static void GetOfstream(std::ofstream & os, ThreadProcessIdType threadHandle);
+
+  /** Wait for a thread running the prescribed SingleMethod. A similar
+   * abstraction needs to be added for MultipleMethod (SpawnThread
+   * already has a routine to do this. */
+  static void WaitForSingleMethodThread(ThreadProcessIdType);
+
+  /** Wait for process #threadhandle by repeatedly reading its barrier file until
+    * the process reaches the same stage number as current process. */
+  static void WaitForProcess(ThreadProcessIdType threadHandle);
+ 
+  /** Declare to other processes that current process is done with current stage
+    * by incrementing the stage number in current process's barrier file. */
+  static void ProcessDone(ThreadProcessIdType threadHandle);
+  
+  /** All processes must reach this point before continuing. 
+    * Each time a processs hits a barrier, the stage number should
+    * increase by one. 
+    * Barriers are used to synchronize timing of parallel processes. */
+  static void Barrier();
+
+  /** Call if process needs to exit. This writes the max unsigned long to 
+    * the barrier file, which tells other processes to exit. */
+  static void Exit();
+  
+  /** Synchronze the variable pointed to by data of length len.
+    * More specifically, process #0 broadcasts its value to 
+    * the other processes. All other processes overwrite their 
+    * variable with process #0's value. 
+    * This is useful for synchronizing random number generator seeds 
+    * or decimal values that drift over time. */
+  static void Sync(char * data, std::size_t len);
+
+  /** These two functions should not be called and are only 
+    * declared so the code compiles. */
+  ThreadIdType SpawnThread(ThreadFunctionType itkNotUsed(f), void * itkNotUsed(data))
+    {
+    std::cerr << "itk::MultiThreader::SpawnThread is not implemented. Exiting ... \n";
+    MultiThreader::Exit();
+    return (ThreadIdType)(0); // Return statement to suppress warning
+    };
+  void TerminateThread(ThreadIdType itkNotUsed(thread_id))
+    {
+    std::cerr << "itk::MultiThreader::TerminateThread is not implemented. Exiting ... \n";
+    MultiThreader::Exit();
+    };
+#endif 
 
   /** This is the structure that is passed to the thread that is
    * created from the SingleMethodExecute, MultipleMethodExecute or
@@ -176,11 +305,13 @@ protected:
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(MultiThreader);
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
   // Thread pool instance and factory
   ThreadPool::Pointer m_ThreadPool;
 
   // choose whether to use Spawn or ThreadPool methods
   bool m_UseThreadPool;
+#endif
 
   /** An array of thread info containing a thread id
    *  (0, 1, 2, .. ITK_MAX_THREADS-1), the thread count, and a pointer
@@ -207,11 +338,13 @@ private:
    *  ITK_MAX_THREADS and greater than zero. */
   static ThreadIdType m_GlobalMaximumNumberOfThreads;
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
   /** Global value to effect weather the threadpool implementation should
    * be used.  This defaults to the environmental variable "ITK_USE_THREADPOOL"
    * if set, else it default to false and new threads are spawned.
    */
   static bool m_GlobalDefaultUseThreadPool;
+#endif
 
   /*  Global variable defining the default number of threads to set at
    *  construction time of a MultiThreader instance.  The
@@ -220,10 +353,7 @@ private:
    *  initialized in the constructor of the first MultiThreader instantiation.
    */
   static ThreadIdType m_GlobalDefaultNumberOfThreads;
-
-  /**  Platform specific number of threads */
-  static ThreadIdType  GetGlobalDefaultNumberOfThreadsByPlatform();
-
+  
   /** The number of threads to use.
    *  The m_NumberOfThreads must always be less than or equal to
    *  the m_GlobalMaximumNumberOfThreads before it is used during the execution
@@ -242,6 +372,10 @@ private:
    * user supplied callback (SingleMethod) in order to catch any
    * exceptions thrown by the threads. */
   static ITK_THREAD_RETURN_TYPE SingleMethodProxy(void *arg);
+
+#ifndef ITK_USE_PARALLEL_PROCESSES
+  /**  Platform specific number of threads */
+  static ThreadIdType  GetGlobalDefaultNumberOfThreadsByPlatform();
 
   /** Assign work to a thread in the thread pool */
   ThreadProcessIdType ThreadPoolDispatchSingleMethodThread(ThreadInfoStruct *);
@@ -266,6 +400,22 @@ private:
    * already has a routine to do this. */
   void WaitForSingleMethodThread(ThreadProcessIdType);
 
+#else
+  /* Number assigned by ITK_PROCESS_NUMBER */
+  static ThreadIdType m_ThreadNumber;
+
+  /* Stage number to synchronize processes. Starts from 0 */
+  static unsigned long m_CurrentStage;
+
+  /* Define the prefix to the file names used to communicate with other threads. */
+  static std::string m_DataFilePrefix;
+  static std::string m_BarrierFilePrefix;
+
+  /** This is the number of seconds which we will wait for other processes
+    * before timing out. Defaults to 60, can be overriden by ITK_TIME_OUT_SECONDS. */
+  static int m_WaitTimeOutSeconds;
+#endif
+
   /** Friends of Multithreader.
    * ProcessObject is a friend so that it can call PrintSelf() on its
    * Multithreader. */
@@ -273,3 +423,4 @@ private:
 };
 }  // end namespace itk
 #endif
+

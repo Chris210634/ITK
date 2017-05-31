@@ -184,6 +184,18 @@ protected:
   itkAlignedTypedef( ITK_CACHE_LINE_ALIGNMENT, PaddedGetValueAndDerivativePerThreadStruct,
                                                AlignedGetValueAndDerivativePerThreadStruct );
   mutable AlignedGetValueAndDerivativePerThreadStruct * m_GetValueAndDerivativePerThreadVariables;
+  
+  /** Read results from other parallel processes from file. */
+  virtual void ReadProcessDataFromFile() ITK_OVERRIDE;
+  
+  /** Write results from ThreadedGenerate Data to file. */
+  virtual void WriteProcessDataToFile() ITK_OVERRIDE;
+
+  /** Helper function for ReadProcessDataFromFile. */
+  virtual void ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId);
+
+  /** Helper function for WriteProcessDataToFile. */
+  virtual void WriteValueAndDerivativeToFile(std::ostream& os, const ThreadIdType threadId) const;
 
   /** Cached values to avoid call overhead.
    *  These will only be set once threading has been started. */

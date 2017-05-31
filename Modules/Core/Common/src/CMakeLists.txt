@@ -28,6 +28,7 @@ set(ITKCommon_SRCS
   itkOctreeNode.cxx
   itkNumericTraitsFixedArrayPixel.cxx
   itkMultiThreader.cxx
+  itkMultiThreaderProcessParallelized.cxx
   itkMetaDataObject.cxx
   itkMetaDataDictionary.cxx
   itkDataObject.cxx
