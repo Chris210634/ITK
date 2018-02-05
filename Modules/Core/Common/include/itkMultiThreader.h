@@ -256,6 +256,9 @@ public:
     * This is useful for synchronizing random number generator seeds 
     * or decimal values that drift over time. */
   static void Sync(char * data, std::size_t len);
+  
+  /** Helper function, for c++98 support. */
+  static std::string to_string(unsigned int i);
 
   /** These two functions should not be called and are only 
     * declared so the code compiles. */
