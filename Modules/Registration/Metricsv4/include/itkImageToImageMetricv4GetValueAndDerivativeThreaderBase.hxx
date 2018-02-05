@@ -342,7 +342,7 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
   /* read results from parallel processes */
   for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
     {
-    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
+    if (i == threadId) continue;
     std::ifstream ifs;
     this->GetMultiThreader()->GetIfstream(ifs, i);
     this->ReadValueAndDerivativeFromFile(ifs, i);

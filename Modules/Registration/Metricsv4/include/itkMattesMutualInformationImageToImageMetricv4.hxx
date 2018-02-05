@@ -549,7 +549,7 @@ MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualI
   JointPDFValueType * tPdfPtr = this->m_ThreaderJointPDF[threadId]->GetBufferPointer();
   is.read((char*)(tPdfPtr),numberOfVoxels*sizeof(JointPDFValueType));
 
-  if (this->m_JointPDFDerivatives != ITK_NULLPTR)
+  if (this->m_JointPDFDerivatives.GetPointer() != NULL)
     {
     JointPDFDerivativesValueType * PdfDerPtr = this->m_JointPDFDerivatives->GetBufferPointer();
     JointPDFDerivativesValueType const * const PdfDerPtrEnd = 
@@ -576,7 +576,7 @@ MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualI
   JointPDFValueType * tPdfPtr = this->m_ThreaderJointPDF[threadId]->GetBufferPointer();
   os.write((char*)(tPdfPtr),numberOfVoxels * sizeof(JointPDFValueType));
   
-  if (this->m_JointPDFDerivatives != ITK_NULLPTR)
+  if (this->m_JointPDFDerivatives.GetPointer() != NULL)
     {
     JointPDFDerivativesValueType * tPdfDerPtr = this->m_JointPDFDerivatives->GetBufferPointer();
     os.write((char*)(tPdfDerPtr),numberOfVoxels * (this->GetNumberOfLocalParameters()) * sizeof(JointPDFDerivativesValueType));
