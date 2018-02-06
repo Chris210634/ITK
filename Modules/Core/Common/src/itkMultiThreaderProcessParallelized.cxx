@@ -245,8 +245,8 @@ void MultiThreader::ConfigureStaticMembers()
       std::ofstream ofs;
       for (unsigned int i=0 ; i< m_GlobalDefaultNumberOfThreads ; i++)
         {
-        std::string filename = m_BarrierFilePrefix + std::to_string(i);
-        ofs.open(filename,std::ios::binary);
+        std::string filename = m_BarrierFilePrefix + to_string(i);
+        ofs.open(filename.c_str(),std::ios::binary);
         ofs.write((char*)(&s),sizeof(s));
         ofs.close();
         }
@@ -450,9 +450,9 @@ void
 MultiThreader
 ::ProcessDone(ThreadProcessIdType threadHandle)
 {
-  std::string filename = m_BarrierFilePrefix + std::to_string(threadHandle);
+  std::string filename = m_BarrierFilePrefix + to_string((unsigned int)threadHandle);
   std::ofstream ofs;
-  ofs.open(filename, std::ios::binary);
+  ofs.open(filename.c_str(), std::ios::binary);
   ofs.write((char*)(&m_CurrentStage),sizeof(m_CurrentStage));
   ofs.close();
 }
@@ -462,12 +462,12 @@ MultiThreader
 ::WaitForProcess(ThreadProcessIdType threadHandle)
 {
   clock_t start_clock = clock();
-  std::string filename = m_BarrierFilePrefix + std::to_string(threadHandle);
+  std::string filename = m_BarrierFilePrefix + to_string((unsigned int)threadHandle);
   std::ifstream ifs;
   unsigned long stage = 0;
   while (stage < m_CurrentStage)
     {
-    ifs.open(filename, std::ios::binary);
+    ifs.open(filename.c_str(), std::ios::binary);
     ifs.read((char*)(&stage),sizeof(stage));
     ifs.close();
     if (stage == ULONG_MAX)
@@ -511,14 +511,14 @@ void MultiThreader::Barrier()
 
 void MultiThreader::GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle)
 {
-  std::string in_filename = m_DataFilePrefix + std::to_string(threadHandle);
-  is.open(in_filename, std::ios::binary);
+  std::string in_filename = m_DataFilePrefix + to_string((unsigned int)threadHandle);
+  is.open(in_filename.c_str(), std::ios::binary);
 }
 
 void MultiThreader::GetOfstream(std::ofstream & os, ThreadProcessIdType threadHandle)
 {
-  std::string out_filename = m_DataFilePrefix + std::to_string(threadHandle);
-  os.open(out_filename, std::ios::binary);
+  std::string out_filename = m_DataFilePrefix + to_string((unsigned int)threadHandle);
+  os.open(out_filename.c_str(), std::ios::binary);
 }
 
 void MultiThreader::Sync(char * data, std::size_t len)
@@ -568,6 +568,12 @@ ThreadProcessIdType MultiThreader::GetThreadNumber()
   return m_ThreadNumber;
 }
 
+std::string MultiThreader::to_string(unsigned int i)
+{
+  std::stringstream ss;
+  ss << i;
+  return ss.str();
+}
 }
 #endif
 
