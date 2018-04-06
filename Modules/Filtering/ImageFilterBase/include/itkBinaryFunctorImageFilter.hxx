@@ -280,55 +280,39 @@ BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
 template< typename TInputImage1, typename TInputImage2, typename TOutputImage, typename TFunction >
 void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
-::ReadProcessDataFromFile()
+::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
+  std::cerr << "### BinaryFunctorImageFilter Read Data\n";
   OutputImageType *outputPtr = this->GetOutput();
-  typename TOutputImage::RegionType outputRegionForThread;
   OutputImagePixelType  pixval;
-  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
-
-  /* read results from parallel processes */
-  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
+  typedef ImageRegionIterator< TOutputImage > OutputIterator;
+  OutputIterator outIt(outputPtr, outputRegionForThread);
+  while ( !outIt.IsAtEnd() )
     {
-    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
-    std::ifstream ifs;
-    this->GetMultiThreader()->GetIfstream(ifs, i);
-    this->SplitRequestedRegion(i, numThreadsUsed, outputRegionForThread);
-    typedef ImageRegionIterator< TOutputImage > OutputIterator;
-    OutputIterator outIt(outputPtr, outputRegionForThread);
-    while ( !outIt.IsAtEnd() )
-      {
-      ifs.read((char*)(&pixval),sizeof(pixval));
-      outIt.Set(pixval);
-      ++outIt;
-      }
-    ifs.close();
+    is.read((char*)(&pixval),sizeof(pixval));
+    outIt.Set(pixval);
+    ++outIt;
     }
+  is.close();
 }
 
 template< typename TInputImage1, typename TInputImage2, typename TOutputImage, typename TFunction >
 void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
-::WriteProcessDataToFile()
+::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  OutputImageRegionType outputRegionForThread;
-  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
-  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
-  this->SplitRequestedRegion(threadId, numThreadsUsed, outputRegionForThread);
+  std::cerr << "### BinaryFunctorImageFilter Write Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   OutputImagePixelType  pixval;
-
-  std::ofstream ofs;
-  this->GetMultiThreader()->GetOfstream(ofs, threadId);
   typedef ImageRegionIterator< TOutputImage > OutputIterator;
   OutputIterator outIt(outputPtr, outputRegionForThread);
   while ( !outIt.IsAtEnd() )
     {
     pixval = outIt.Get();
-    ofs.write((char*)(&pixval),sizeof(pixval));
+    os.write((char*)(&pixval),sizeof(pixval));
     ++outIt;
     }
-  ofs.close();
+  os.close();
 }
 
 template< typename TInputImage1, typename TInputImage2, typename TOutputImage, typename TFunction >

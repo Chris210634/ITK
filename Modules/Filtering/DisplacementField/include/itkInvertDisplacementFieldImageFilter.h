@@ -55,6 +55,7 @@ public:
 
   typedef TInputImage                          InputFieldType;
   typedef TOutputImage                         OutputFieldType;
+  typedef typename TOutputImage::RegionType    OutputImageRegionType;
 
   typedef InputFieldType                       DisplacementFieldType;
   typedef OutputFieldType                      InverseDisplacementFieldType;
@@ -151,11 +152,12 @@ protected:
   void ThreadedGenerateData( const RegionType &, ThreadIdType ) ITK_OVERRIDE;
 
   /** Read results from other parallel processes from file. */
-  virtual void ReadProcessDataFromFile() ITK_OVERRIDE;
+  virtual void ReadDataFromFile(std::ifstream & is,
+                                OutputImageRegionType outputRegionForThread) ITK_OVERRIDE;
   
   /** Write results from ThreadedGenerate Data to file. */
-  virtual void WriteProcessDataToFile() ITK_OVERRIDE;
-
+  virtual void WriteDataToFile(std::ofstream & os,
+                               OutputImageRegionType outputRegionForThread) ITK_OVERRIDE;
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(InvertDisplacementFieldImageFilter);
 
