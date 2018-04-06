@@ -291,7 +291,11 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
   typename ImageSource<TOutputImage>::ThreadStruct str1;
   str1.Filter = this;
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
   this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
+#else
+  this->GetMultiThreader()->SetNumberOfThreads(1);
+#endif
   this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str1 );
 
   // Multithread the generation of the control point lattice.
@@ -372,8 +376,12 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
 
     typename ImageSource<ImageType>::ThreadStruct str2;
     str2.Filter = this;
-
+    
+#ifndef ITK_USE_PARALLEL_PROCESSES
     this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
+#else
+    this->GetMultiThreader()->SetNumberOfThreads(1);
+#endif
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str2 );
 
     // Multithread the generation of the control point lattice.
@@ -413,7 +421,11 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
     typename ImageSource<ImageType>::ThreadStruct str3;
     str3.Filter = this;
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
     this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
+#else
+    this->GetMultiThreader()->SetNumberOfThreads(1);
+#endif
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str3 );
 
 //    this->BeforeThreadedGenerateData();
@@ -577,7 +589,11 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
 
   // Determine which points should be handled by this particular thread.
 
+#ifndef ITK_USE_PARALLEL_PROCESSES
   ThreadIdType numberOfThreads = this->GetNumberOfThreads();
+#else
+  ThreadIdType numberOfThreads = 1;
+#endif
   SizeValueType numberOfPointsPerThread = static_cast<SizeValueType>(
     input->GetNumberOfPoints() / numberOfThreads );
 

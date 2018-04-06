@@ -328,6 +328,14 @@ mark_as_advanced(ITK_COMPUTER_MEMORY_SIZE)
 option(ITK_USE_FLOAT_SPACE_PRECISION "Use single precision for origin/spacing/directions in itk::Image" OFF)
 mark_as_advanced(ITK_USE_FLOAT_SPACE_PRECISION)
 
+#--------------------------------------------------------------------------
+# Compile process parallelized version if ITK_USE_PARALLEL_PROCESSES
+# is defined in environment
+option(ITK_USE_PARALLEL_PROCESSES "Build process parallelized ITK" OFF)
+if( ITK_USE_PARALLEL_PROCESSES )
+  add_definitions(-DITK_USE_PARALLEL_PROCESSES=1)
+endif()
+
 #----------------------------------------------------------------------
 # Make sure remote modules are downloaded before sorting out the module
 # dependencies.
@@ -429,3 +437,4 @@ add_subdirectory(Utilities/Doxygen)
 # all tests have been added that reference the group, so we put it last.
 include(${ITK_CMAKE_DIR}/ExternalData.cmake)
 ExternalData_Add_Target(ITKData)
+

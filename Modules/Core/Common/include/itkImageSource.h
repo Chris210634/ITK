@@ -343,6 +343,15 @@ protected:
     Pointer Filter;
   };
 
+  /** Reads results from other processes from file. */
+  virtual void ReadProcessDataFromFile(){}
+  
+  /** Writes results from current process's ThreadedExecution to file.*/
+  virtual void WriteProcessDataToFile(){}
+  
+  /** Return true if current process is process parallelized. */
+  virtual bool IsProcessParallelized() const;
+
 private:
   ITK_DISALLOW_COPY_AND_ASSIGN(ImageSource);
 };

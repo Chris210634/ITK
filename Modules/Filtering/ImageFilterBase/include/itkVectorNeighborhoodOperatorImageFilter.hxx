@@ -24,6 +24,7 @@
 #include "itkImageRegionIterator.h"
 #include "itkConstNeighborhoodIterator.h"
 #include "itkProgressReporter.h"
+#include <fstream>
 
 namespace itk
 {
@@ -125,6 +126,68 @@ VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
       progress.CompletedPixel();
       }
     }
+}
+
+template< typename TInputImage, typename TOutputImage >
+void
+VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
+::ReadProcessDataFromFile()
+{
+  OutputImageType *outputPtr = this->GetOutput();
+  typename TOutputImage::RegionType outputRegionForThread;
+  PixelType pixval;
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+
+  /* read results from parallel processes */
+  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
+    {
+    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
+    std::ifstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, i);
+    this->SplitRequestedRegion(i, numThreadsUsed, outputRegionForThread);
+    typedef ImageRegionIterator< TOutputImage > OutputIterator;
+    OutputIterator outIt(outputPtr, outputRegionForThread);
+    while ( !outIt.IsAtEnd() )
+      {
+      ifs.read((char*)(&pixval),sizeof(pixval));
+      outIt.Set(pixval);
+      ++outIt;
+      }
+    ifs.close();
+    }
+}
+
+template< typename TInputImage, typename TOutputImage >
+void
+VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
+::WriteProcessDataToFile()
+{
+  typename TOutputImage::RegionType outputRegionForThread;
+  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+  this->SplitRequestedRegion(threadId, numThreadsUsed, outputRegionForThread);
+  OutputImageType *outputPtr = this->GetOutput();
+  PixelType pixval;
+
+  std::ofstream ofs;
+  this->GetMultiThreader()->GetOfstream(ofs, threadId);
+  typedef ImageRegionIterator< TOutputImage > OutputIterator;
+  OutputIterator outIt(outputPtr, outputRegionForThread);
+  while ( !outIt.IsAtEnd() )
+    {
+    pixval = outIt.Get();
+    ofs.write((char*)(&pixval),sizeof(pixval));
+    ++outIt;
+    }
+  ofs.close();
+}
+
+template< typename TInputImage, typename TOutputImage >
+bool
+VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
+::IsProcessParallelized() const
+{
+  return true;
 }
 } // end namespace itk
 

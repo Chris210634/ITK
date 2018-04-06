@@ -25,83 +25,42 @@
  *  please refer to the NOTICE file at the top of the ITK source tree.
  *
  *=========================================================================*/
-#ifndef ITK_USE_PARALLEL_PROCESSES
+#ifdef ITK_USE_PARALLEL_PROCESSES
+
+#include "itkObjectFactory.h"
+#include "itksys/SystemTools.hxx"
+#include <unistd.h>
 
 #include "itkMultiThreader.h"
 #include "itkNumericTraits.h"
-#include <iostream>
-#include <string>
+
 #if !defined( ITK_LEGACY_FUTURE_REMOVE )
 # include "vcl_algorithm.h"
 #endif
-#include <algorithm>
 
-#if defined(ITK_USE_PTHREADS)
-#include "itkMultiThreaderPThreads.cxx"
-#elif defined(ITK_USE_WIN32_THREADS)
-#include "itkMultiThreaderWinThreads.cxx"
-#else
-#include "itkMultiThreaderNoThreads.cxx"
-#endif
+#include <iostream>
+#include <string>
+#include <algorithm>
+#include <fstream>
+#include <climits>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sys/wait.h>
 
 namespace itk
 {
-
-// GlobalDefaultUseThreadPoolIsInitialized is used only in this
-// file to ensure that the ITK_USE_THREADPOOL environmenal variable
-// is only used as a fall back option.  If the SetGlobalDefaultUseThreadPool
-// API is ever used by the developer, the developers choice is
-// respected over the environmental variable.
-static bool GlobalDefaultUseThreadPoolIsInitialized=false;
 static SimpleFastMutexLock globalDefaultInitializerLock;
 
-bool MultiThreader::m_GlobalDefaultUseThreadPool = false;
+ThreadIdType MultiThreader::m_ThreadNumber       = 0;
+unsigned long MultiThreader::m_CurrentStage      = 0;
 
-void MultiThreader::SetGlobalDefaultUseThreadPool( const bool GlobalDefaultUseThreadPool )
-  {
-  m_GlobalDefaultUseThreadPool = GlobalDefaultUseThreadPool;
-  GlobalDefaultUseThreadPoolIsInitialized=true;
-  }
+// Initialize files with default
+std::string MultiThreader::m_DataFilePrefix    = "/tmp/itktmp";
+std::string MultiThreader::m_BarrierFilePrefix = "/tmp/itkhold";
 
-bool MultiThreader::GetGlobalDefaultUseThreadPool( )
-  {
-  // This method must be concurrent thread safe
-
-  if( !GlobalDefaultUseThreadPoolIsInitialized )
-    {
-
-    MutexLockHolder< SimpleFastMutexLock > lock(globalDefaultInitializerLock);
-
-    // After we have the lock, double check the initialization
-    // flag to ensure it hasn't been changed by another thread.
-
-    if (!GlobalDefaultUseThreadPoolIsInitialized )
-      {
-      // look for runtime request to use thread pool
-      std::string use_threadpool;
-
-      if( itksys::SystemTools::GetEnv("ITK_USE_THREADPOOL",use_threadpool) )
-        {
-
-        use_threadpool = itksys::SystemTools::UpperCase(use_threadpool);
-
-        // NOTE: GlobalDefaultUseThreadPoolIsInitialized=true after this call
-        if(use_threadpool != "NO" && use_threadpool != "OFF" && use_threadpool != "FALSE")
-          {
-          MultiThreader::SetGlobalDefaultUseThreadPool( true );
-          }
-        else
-          {
-          MultiThreader::SetGlobalDefaultUseThreadPool( false );
-          }
-        }
-
-      // always set that we are initialized
-      GlobalDefaultUseThreadPoolIsInitialized=true;
-      }
-    }
-  return m_GlobalDefaultUseThreadPool;
-  }
+//Initialize the default time out on waiting for other processes
+int MultiThreader::m_WaitTimeOutSeconds = 60;
 
 // Initialize static member that controls global maximum number of threads.
 ThreadIdType MultiThreader::m_GlobalMaximumNumberOfThreads = ITK_MAX_THREADS;
@@ -220,11 +179,11 @@ ThreadIdType MultiThreader::GetGlobalDefaultNumberOfThreads()
       }
     }
 
-  // otherwise, set number of threads based on system information
+  // otherwise, exit with error
   if( m_GlobalDefaultNumberOfThreads <= 0 )
     {
-    const ThreadIdType num = GetGlobalDefaultNumberOfThreadsByPlatform();
-    m_GlobalDefaultNumberOfThreads = num;
+    std::cerr << "ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS not set ot <= 0. Exiting ...\n";
+    exit(1);
     }
 
   // limit the number of threads to m_GlobalMaximumNumberOfThreads
@@ -234,17 +193,76 @@ ThreadIdType MultiThreader::GetGlobalDefaultNumberOfThreads()
   // verify that the default number of threads is larger than zero
   m_GlobalDefaultNumberOfThreads  = std::max( m_GlobalDefaultNumberOfThreads,
                                               NumericTraits<ThreadIdType>::OneValue() );
-
   return m_GlobalDefaultNumberOfThreads;
+}
+  
+void MultiThreader::ConfigureStaticMembers()
+{
+  // If stage is not zero, then everything's been configured already.
+  if( m_CurrentStage != 0 )
+    {
+    return;
+    }
+
+  //Configure prefixes for process communication files
+  if(const char* env_data_file_prefix = std::getenv("ITK_DATA_FILE_PREFIX"))
+    {
+    m_DataFilePrefix = std::string(env_data_file_prefix);
+    }
+  if(const char* env_barrier_file_prefix = std::getenv("ITK_BARRIER_FILE_PREFIX"))
+    {
+    m_BarrierFilePrefix = std::string(env_barrier_file_prefix);
+    }
+
+  //Configure time out waiting for other processes in seconds
+  if(const char* env_time_out_seconds = std::getenv("ITK_TIME_OUT_SECONDS"))
+    {
+    m_WaitTimeOutSeconds = atoi(env_time_out_seconds);
+    }
+
+  //Configure thread number 
+  if(const char* env_thread_number = std::getenv("ITK_PROCESS_NUMBER"))
+    {
+    m_ThreadNumber = static_cast<ThreadIdType>(atoi(env_thread_number));
+    if ( m_ThreadNumber >=  m_GlobalDefaultNumberOfThreads)
+      {
+      std::cerr << "ITK_PROCESS_NUMBER out of range, exiting.\n";
+      exit(1);
+      }
+    m_CurrentStage = 1;
+
+    // Process number 0 is responsible for setting all itk barrier files to 0
+    // if ITK_BARRIER_FILE_RESET is not 1
+    bool barrier_file_reset = false;
+    if(const char* env_barrier_file_reset = std::getenv("ITK_BARRIER_FILE_RESET"))
+      {
+      barrier_file_reset = atoi(env_barrier_file_reset);
+      }
+    
+    if ((!barrier_file_reset) and m_ThreadNumber == 0)
+      {
+      unsigned long s = 0;
+      std::ofstream ofs;
+      for (unsigned int i=0 ; i< m_GlobalDefaultNumberOfThreads ; i++)
+        {
+        std::string filename = m_BarrierFilePrefix + std::to_string(i);
+        ofs.open(filename,std::ios::binary);
+        ofs.write((char*)(&s),sizeof(s));
+        ofs.close();
+        }
+      }
+    }
+  else 
+    {
+    std::cerr << "ITK_PROCESS_NUMBER not set, exiting.\n";
+    exit(1);
+    }
 }
 
 // Constructor. Default all the methods to ITK_NULLPTR. Since the
 // ThreadInfoArray is static, the ThreadIDs can be initialized here
 // and will not change.
-
-MultiThreader::MultiThreader() :
-  m_ThreadPool(ThreadPool::GetInstance() ),
-  m_UseThreadPool( MultiThreader::GetGlobalDefaultUseThreadPool() )
+MultiThreader::MultiThreader()
 {
   for( ThreadIdType i = 0; i < ITK_MAX_THREADS; ++i )
     {
@@ -263,7 +281,7 @@ MultiThreader::MultiThreader() :
   m_SingleMethod = ITK_NULLPTR;
   m_SingleData = ITK_NULLPTR;
   m_NumberOfThreads = this->GetGlobalDefaultNumberOfThreads();
-
+  this->ConfigureStaticMembers();
 }
 
 MultiThreader::~MultiThreader()
@@ -296,11 +314,16 @@ void MultiThreader::SetMultipleMethod(ThreadIdType index, ThreadFunctionType f, 
     }
 }
 
+void MultiThreader::MultipleMethodExecute()
+{
+  // raise not implemented error
+}
+
 // Execute the method set as the SingleMethod on NumberOfThreads threads.
 void MultiThreader::SingleMethodExecute()
 {
-  ThreadIdType        thread_loop = 0;
-  ThreadProcessIdType process_id[ITK_MAX_THREADS];
+  //ThreadIdType        thread_loop = 0;
+  //ThreadProcessIdType process_id[ITK_MAX_THREADS];
 
   if( !m_SingleMethod )
     {
@@ -309,13 +332,6 @@ void MultiThreader::SingleMethodExecute()
 
   // obey the global maximum number of threads limit
   m_NumberOfThreads = std::min( m_GlobalMaximumNumberOfThreads, m_NumberOfThreads );
-
-  // Init process_id table because a valid process_id (i.e., non-zero), is
-  // checked in the WaitForSingleMethodThread loops
-  for( thread_loop = 1; thread_loop < m_NumberOfThreads; ++thread_loop )
-    {
-    process_id[thread_loop] = 0;
-    }
 
   // Spawn a set of threads through the SingleMethodProxy. Exceptions
   // thrown from a thread will be caught by the SingleMethodProxy. A
@@ -326,94 +342,55 @@ void MultiThreader::SingleMethodExecute()
   // exceptions thrown by threads.
   bool        exceptionOccurred = false;
   std::string exceptionDetails;
-  try
-    {
-    for( thread_loop = 1; thread_loop < m_NumberOfThreads; ++thread_loop )
-      {
-      m_ThreadInfoArray[thread_loop].UserData    = m_SingleData;
-      m_ThreadInfoArray[thread_loop].NumberOfThreads = m_NumberOfThreads;
-      m_ThreadInfoArray[thread_loop].ThreadFunction = m_SingleMethod;
 
-      process_id[thread_loop] =
-        this->DispatchSingleMethodThread(&m_ThreadInfoArray[thread_loop]);
-      }
-    }
-  catch( std::exception & e )
-    {
-    // get the details of the exception to rethrow them
-    exceptionDetails = e.what();
-    // If creation of any thread failed, we must make sure that all
-    // threads are correctly cleaned
-    exceptionOccurred = true;
-    }
-  catch( ... )
-    {
-    // If creation of any thread failed, we must make sure that all
-    // threads are correctly cleaned
-    exceptionOccurred = true;
-    }
-
-  // Now, the parent thread calls this->SingleMethod() itself
-  //
-  //
-  try
-    {
-    m_ThreadInfoArray[0].UserData = m_SingleData;
-    m_ThreadInfoArray[0].NumberOfThreads = m_NumberOfThreads;
-    m_SingleMethod( (void *)( &m_ThreadInfoArray[0] ) );
-    }
-  catch( ProcessAborted & )
-    {
-    // Need cleanup and rethrow ProcessAborted
-    // close down other threads
-    for( thread_loop = 1; thread_loop < m_NumberOfThreads && process_id[thread_loop]; ++thread_loop )
-      {
-      try
-        {
-        this->WaitForSingleMethodThread(process_id[thread_loop]);
-        }
-      catch( ... )
-        {
-        }
-      }
-    // rethrow
-    throw;
-    }
-  catch( std::exception & e )
-    {
-    // get the details of the exception to rethrow them
-    exceptionDetails = e.what();
-    // if this method fails, we must make sure all threads are
-    // correctly cleaned
-    exceptionOccurred = true;
-    }
-  catch( ... )
-    {
-    // if this method fails, we must make sure all threads are
-    // correctly cleaned
-    exceptionOccurred = true;
-    }
-  // The parent thread has finished this->SingleMethod() - so now it
-  // waits for each of the other processes to exit
-  for( thread_loop = 1; thread_loop < m_NumberOfThreads && process_id[thread_loop]; ++thread_loop )
+  // Single threaded (non parallelized) segment must be executed as thread 0
+  if ( m_NumberOfThreads == 1)
     {
     try
       {
-      this->WaitForSingleMethodThread(process_id[thread_loop]);
-      if( m_ThreadInfoArray[thread_loop].ThreadExitCode
-          != ThreadInfoStruct::SUCCESS )
-        {
-        exceptionOccurred = true;
-        }
+      m_ThreadInfoArray[0].UserData = m_SingleData;
+      m_ThreadInfoArray[0].NumberOfThreads = m_NumberOfThreads;
+      m_SingleMethod( (void *)( &m_ThreadInfoArray[0] ) );
       }
     catch( std::exception & e )
       {
       // get the details of the exception to rethrow them
       exceptionDetails = e.what();
+      // if this method fails, we must make sure all threads are
+      // correctly cleaned
       exceptionOccurred = true;
       }
     catch( ... )
       {
+      // if this method fails, we must make sure all threads are
+      // correctly cleaned
+      exceptionOccurred = true;
+      }
+    }
+
+  // Multithreaded process, only execute the part that is assigned to
+  // m_ThreadNumber 
+  else
+    {
+    try
+      {
+      m_ThreadInfoArray[m_ThreadNumber].UserData    = m_SingleData;
+      m_ThreadInfoArray[m_ThreadNumber].NumberOfThreads = m_NumberOfThreads;
+      m_ThreadInfoArray[m_ThreadNumber].ThreadFunction = m_SingleMethod;
+      m_SingleMethod( (void *)( &m_ThreadInfoArray[m_ThreadNumber] ) );
+      }
+    catch( std::exception & e )
+      {
+      // get the details of the exception to rethrow them
+      exceptionDetails = e.what();
+      // if this method fails, we must make sure all threads are
+      // correctly cleaned
+      exceptionOccurred = true;
+      }
+    catch( ... )
+      {
+      // if this method fails, we must make sure all threads are
+      // correctly cleaned
       exceptionOccurred = true;
       }
     }
@@ -469,29 +446,109 @@ MultiThreader
   return ITK_THREAD_RETURN_VALUE;
 }
 
-ThreadProcessIdType
+void 
 MultiThreader
-::DispatchSingleMethodThread(ThreadInfoStruct *info)
+::ProcessDone(ThreadProcessIdType threadHandle)
 {
-  if(this->m_UseThreadPool)
+  std::string filename = m_BarrierFilePrefix + std::to_string(threadHandle);
+  std::ofstream ofs;
+  ofs.open(filename, std::ios::binary);
+  ofs.write((char*)(&m_CurrentStage),sizeof(m_CurrentStage));
+  ofs.close();
+}
+
+void 
+MultiThreader
+::WaitForProcess(ThreadProcessIdType threadHandle)
+{
+  clock_t start_clock = clock();
+  std::string filename = m_BarrierFilePrefix + std::to_string(threadHandle);
+  std::ifstream ifs;
+  unsigned long stage = 0;
+  while (stage < m_CurrentStage)
     {
-    return this->ThreadPoolDispatchSingleMethodThread(info);
+    ifs.open(filename, std::ios::binary);
+    ifs.read((char*)(&stage),sizeof(stage));
+    ifs.close();
+    if (stage == ULONG_MAX)
+      {
+      std::cerr << "Process #" << threadHandle << " exited. exiting ... \n";
+      exit(1);
+      }
+    if ( (((float)(clock() - start_clock)) / CLOCKS_PER_SEC) > m_WaitTimeOutSeconds )
+      {
+      std::cerr << "Timed out waiting for process #" << threadHandle << " exiting ... \n";
+      MultiThreader::Exit();
+      }
     }
-  return this->SpawnDispatchSingleMethodThread(info);
 }
 
 void
 MultiThreader
 ::WaitForSingleMethodThread(ThreadProcessIdType threadHandle)
 {
-  if(this->m_UseThreadPool)
+  if (threadHandle == m_ThreadNumber) return;
+  else
     {
-    this->ThreadPoolWaitForSingleMethodThread(threadHandle);
+    WaitForProcess(threadHandle);
+    }
+}
+
+void MultiThreader::Barrier()
+{
+  ProcessDone(m_ThreadNumber);
+  for( unsigned int thread_loop = 0 ; thread_loop < m_GlobalDefaultNumberOfThreads ; ++thread_loop )
+    {
+    WaitForSingleMethodThread(thread_loop);
+    }
+  m_CurrentStage++;
+  if (m_CurrentStage == ULONG_MAX)
+    {
+    std::cerr << "Stage number overflow. exiting ... \n";
+    MultiThreader::Exit();
+    }
+}
+
+void MultiThreader::GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle)
+{
+  std::string in_filename = m_DataFilePrefix + std::to_string(threadHandle);
+  is.open(in_filename, std::ios::binary);
+}
+
+void MultiThreader::GetOfstream(std::ofstream & os, ThreadProcessIdType threadHandle)
+{
+  std::string out_filename = m_DataFilePrefix + std::to_string(threadHandle);
+  os.open(out_filename, std::ios::binary);
+}
+
+void MultiThreader::Sync(char * data, std::size_t len)
+{
+  if (GetThreadNumber() == 0)
+    {
+    std::ofstream ofs;
+    GetOfstream(ofs,0);
+    ofs.write(data,len);
+    ofs.close();
+    Barrier();
     }
   else
     {
-    this->SpawnWaitForSingleMethodThread(threadHandle);
+    Barrier();
+    std::ifstream ifs;
+    GetIfstream(ifs,0);
+    ifs.read(data,len);
+    ifs.close();
     }
+  Barrier();
+}
+
+void MultiThreader::Exit()
+{
+  std::ofstream ofs;
+  GetOfstream(ofs,GetThreadNumber());
+  unsigned long max_ulong = ULONG_MAX;
+  ofs.write((char*)(&max_ulong),sizeof(max_ulong));
+  exit(1);
 }
 
 // Print method for the multithreader
@@ -504,6 +561,11 @@ void MultiThreader::PrintSelf(std::ostream & os, Indent indent) const
      << m_GlobalMaximumNumberOfThreads << std::endl;
   os << indent << "Global Default Number Of Threads: "
      << m_GlobalDefaultNumberOfThreads << std::endl;
+}
+
+ThreadProcessIdType MultiThreader::GetThreadNumber()
+{
+  return m_ThreadNumber;
 }
 
 }

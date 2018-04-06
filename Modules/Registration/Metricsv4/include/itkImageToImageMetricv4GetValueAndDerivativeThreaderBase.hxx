@@ -20,6 +20,9 @@
 
 #include "itkImageToImageMetricv4GetValueAndDerivativeThreaderBase.h"
 #include "itkNumericTraits.h"
+#include <fstream>
+#include <string>
+#include <signal.h>
 
 namespace itk
 {
@@ -329,6 +332,107 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
   return this->m_Associate->GetComputeDerivative();
 }
 
+template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
+void
+ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
+::ReadProcessDataFromFile()
+{
+  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreadsUsed();
+  /* read results from parallel processes */
+  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
+    {
+    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
+    std::ifstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, i);
+    this->ReadValueAndDerivativeFromFile(ifs, i);
+    ifs.close();
+    }
+}
+
+template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
+void
+ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
+::WriteProcessDataToFile()
+{
+  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
+  //Write fitness values and derivatives to file
+  std::ofstream ofs;
+  this->GetMultiThreader()->GetOfstream(ofs, threadId);
+  this->WriteValueAndDerivativeToFile(ofs, threadId);
+  ofs.close();
+}
+
+template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
+void
+ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
+::ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId)
+{
+  AlignedGetValueAndDerivativePerThreadStruct * const self = 
+    & m_GetValueAndDerivativePerThreadVariables[threadId];
+  unsigned int vector_size;
+  DerivativeValueType tmp;
+  is.read((char*)(&self->Measure), sizeof(self->Measure));
+  is.read((char*)(&vector_size), sizeof(vector_size));
+  if ( self->Derivatives.size() != vector_size)
+    {
+    std::cerr << "Error: Derivatives vector size does not match.\n";
+    MultiThreader::Exit();
+    }
+  for (unsigned int j=0 ; j < vector_size ; ++j)
+  { 
+    is.read((char*)(&tmp), sizeof(tmp));
+    self->Derivatives[j] += tmp;
+  }
+  is.read((char*)(&vector_size), sizeof(vector_size));
+  if ( self->CompensatedDerivatives.size() != vector_size)
+    {
+    std::cerr << "Error: CompensatedDerivatives vector size does not match.\n";
+    MultiThreader::Exit();
+    }
+  for (unsigned int j=0 ; j < vector_size ; ++j)
+  {
+    is.read((char*)(&self->CompensatedDerivatives[j]), sizeof(self->CompensatedDerivatives[j]));
+  }
+  is.read((char*)(&vector_size), sizeof(vector_size));
+  if ( self->LocalDerivatives.size() != vector_size)
+    {
+    std::cerr << "Error: LocalDerivatives vector size does not match.\n";
+    MultiThreader::Exit();
+    }
+  for (unsigned int j=0 ; j < vector_size ; ++j)
+  { 
+    is.read((char*)(&self->LocalDerivatives[j]), sizeof(&self->LocalDerivatives[j]));
+  }
+  is.read((char*)(&self->NumberOfValidPoints), sizeof(self->NumberOfValidPoints));
+}
+
+template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
+void
+ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
+::WriteValueAndDerivativeToFile(std::ostream& os, const ThreadIdType threadId) const
+{
+  unsigned int vector_size;
+  AlignedGetValueAndDerivativePerThreadStruct * const self = &
+    m_GetValueAndDerivativePerThreadVariables[threadId];
+  os.write((char*)(&self->Measure), sizeof(self->Measure));
+  vector_size = self->Derivatives.size();
+  os.write((char*)(&vector_size), sizeof(vector_size));
+  for (unsigned int i=0 ; i < vector_size ; ++i){ 
+    os.write((char*)(&self->Derivatives[i]), sizeof(self->Derivatives[i]));
+  }
+  vector_size = self->CompensatedDerivatives.size();
+  os.write((char*)(&vector_size), sizeof(vector_size));
+  for (unsigned int i=0 ; i < vector_size ; ++i){ 
+    os.write((char*)(&self->CompensatedDerivatives[i]), sizeof(self->CompensatedDerivatives[i]));
+  }
+  vector_size = self->LocalDerivatives.size();
+  os.write((char*)(&vector_size), sizeof(vector_size));
+  for (unsigned int i=0 ; i < vector_size ; ++i){ 
+    os.write((char*)(&self->LocalDerivatives[i]), sizeof(self->LocalDerivatives[i]));
+  }
+  os.write((char*)(&self->NumberOfValidPoints), sizeof(self->NumberOfValidPoints));
+}
 } // end namespace itk
 
 #endif

@@ -597,6 +597,13 @@ ANTSNeighborhoodCorrelationImageToImageMetricv4GetValueAndDerivativeThreader< TD
   return pointIsValid;
 }
 
+template < typename TDomainPartitioner, typename TImageToImageMetric, typename TNeighborhoodCorrelationMetric >
+bool
+ANTSNeighborhoodCorrelationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TNeighborhoodCorrelationMetric >
+::IsProcessParallelized() const
+{
+  return true;
+}
 
 } // end namespace itk
 

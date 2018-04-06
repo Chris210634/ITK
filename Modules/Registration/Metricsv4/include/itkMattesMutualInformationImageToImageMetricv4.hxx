@@ -539,6 +539,54 @@ MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualI
   m_CurrentFillSize = 0; // Reset fill size back to zero.
 }
 
+template <typename TFixedImage, typename TMovingImage, typename TVirtualImage, typename TInternalComputationValueType, typename TMetricTraits>
+void 
+MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualImage, TInternalComputationValueType, TMetricTraits>
+::ReadValueAndDerivativeFromFile( std::istream& is, const ThreadIdType threadId)
+{ 
+  JointPDFDerivativesValueType tmp;
+  const SizeValueType numberOfVoxels = this->m_NumberOfHistogramBins * this->m_NumberOfHistogramBins;
+  JointPDFValueType * tPdfPtr = this->m_ThreaderJointPDF[threadId]->GetBufferPointer();
+  is.read((char*)(tPdfPtr),numberOfVoxels*sizeof(JointPDFValueType));
+
+  if (this->m_JointPDFDerivatives != ITK_NULLPTR)
+    {
+    JointPDFDerivativesValueType * PdfDerPtr = this->m_JointPDFDerivatives->GetBufferPointer();
+    JointPDFDerivativesValueType const * const PdfDerPtrEnd = 
+      PdfDerPtr + numberOfVoxels * this->GetNumberOfLocalParameters();
+    while( PdfDerPtr < PdfDerPtrEnd )
+      {
+      is.read((char*)(&tmp),sizeof(JointPDFDerivativesValueType));
+      *( PdfDerPtr++ ) += tmp;
+      }
+    }
+  for( SizeValueType i = 0; i < this->m_NumberOfHistogramBins; ++i )
+    {
+    is.read((char*) (& (this->m_ThreaderFixedImageMarginalPDF[threadId][i])),
+             sizeof(this->m_ThreaderFixedImageMarginalPDF[threadId][i]));
+    }
+}
+  
+template <typename TFixedImage, typename TMovingImage, typename TVirtualImage, typename TInternalComputationValueType, typename TMetricTraits>
+void 
+MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualImage, TInternalComputationValueType, TMetricTraits>
+::WriteValueAndDerivativeToFile( std::ostream& os, const ThreadIdType threadId) const
+{
+  const SizeValueType numberOfVoxels = this->m_NumberOfHistogramBins * this->m_NumberOfHistogramBins;
+  JointPDFValueType * tPdfPtr = this->m_ThreaderJointPDF[threadId]->GetBufferPointer();
+  os.write((char*)(tPdfPtr),numberOfVoxels * sizeof(JointPDFValueType));
+  
+  if (this->m_JointPDFDerivatives != ITK_NULLPTR)
+    {
+    JointPDFDerivativesValueType * tPdfDerPtr = this->m_JointPDFDerivatives->GetBufferPointer();
+    os.write((char*)(tPdfDerPtr),numberOfVoxels * (this->GetNumberOfLocalParameters()) * sizeof(JointPDFDerivativesValueType));
+    }
+  for( SizeValueType i = 0; i < this->m_NumberOfHistogramBins; ++i )
+    {
+    os.write((char*) (& (this->m_ThreaderFixedImageMarginalPDF[threadId][i])),
+             sizeof(this->m_ThreaderFixedImageMarginalPDF[threadId][i]));
+    }
+}
 } // end namespace itk
 
 #endif

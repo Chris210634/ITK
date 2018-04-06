@@ -26,6 +26,7 @@
 #include "itkImageScanlineIterator.h"
 #include "itkSpecialCoordinatesImage.h"
 #include "itkDefaultConvertPixelTraits.h"
+#include <fstream>
 
 namespace itk
 {
@@ -119,7 +120,6 @@ void
 ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
 ::BeforeThreadedGenerateData()
 {
-
   if ( !m_Interpolator )
     {
     itkExceptionMacro(<< "Interpolator not set");
@@ -323,7 +323,6 @@ ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTra
         outIt.Set(pixval);
         }
       }
-
     progress.CompletedPixel();
     ++outIt;
     }
@@ -590,6 +589,77 @@ ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTra
   os << indent << "Extrapolator: " << m_Extrapolator.GetPointer() << std::endl;
   os << indent << "UseReferenceImage: " << ( m_UseReferenceImage ? "On" : "Off" )
      << std::endl;
+}
+
+template< typename TInputImage,
+          typename TOutputImage,
+          typename TInterpolatorPrecisionType,
+          typename TTransformPrecisionType >
+void
+ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
+::ReadProcessDataFromFile()
+{
+  OutputImageType *outputPtr = this->GetOutput();
+  typename TOutputImage::RegionType outputRegionForThread;
+  PixelType pixval;
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+
+  /* read results from parallel processes */
+  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
+    {
+    if (i == this->GetMultiThreader()->GetThreadNumber()) continue;
+    std::ifstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, i);
+    this->SplitRequestedRegion(i, numThreadsUsed, outputRegionForThread);
+    typedef ImageRegionIterator< TOutputImage > OutputIterator;
+    OutputIterator outIt(outputPtr, outputRegionForThread);
+    while ( !outIt.IsAtEnd() )
+      {
+      ifs.read((char*)(&pixval),sizeof(pixval));
+      outIt.Set(pixval);
+      ++outIt;
+      }
+    ifs.close();
+    }
+}
+
+template< typename TInputImage,
+          typename TOutputImage,
+          typename TInterpolatorPrecisionType,
+          typename TTransformPrecisionType >
+void
+ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
+::WriteProcessDataToFile()
+{
+  OutputImageRegionType outputRegionForThread;
+  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
+  const ThreadIdType numThreadsUsed = this->GetNumberOfThreads();
+  this->SplitRequestedRegion(threadId, numThreadsUsed, outputRegionForThread);
+  OutputImageType *outputPtr = this->GetOutput();
+  PixelType pixval;
+
+  std::ofstream ofs;
+  this->GetMultiThreader()->GetOfstream(ofs, threadId);
+  typedef ImageRegionIterator< TOutputImage > OutputIterator;
+  OutputIterator outIt(outputPtr, outputRegionForThread);
+  while ( !outIt.IsAtEnd() )
+    {
+    pixval = outIt.Get();
+    ofs.write((char*)(&pixval),sizeof(pixval));
+    ++outIt;
+    }
+  ofs.close();
+}
+
+template< typename TInputImage,
+          typename TOutputImage,
+          typename TInterpolatorPrecisionType,
+          typename TTransformPrecisionType >
+bool
+ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
+::IsProcessParallelized() const
+{
+  return true;
 }
 } // end namespace itk
 
