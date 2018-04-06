@@ -343,11 +343,16 @@ protected:
     Pointer Filter;
   };
 
+  void ReadDataFromFileWrapper();
+  void WriteDataToFileWrapper();
+
   /** Reads results from other processes from file. */
-  virtual void ReadProcessDataFromFile(){}
+  virtual void ReadDataFromFile(std::ifstream & itkNotUsed(is),
+                                OutputImageRegionType itkNotUsed(outputRegionForThread)){}
   
   /** Writes results from current process's ThreadedExecution to file.*/
-  virtual void WriteProcessDataToFile(){}
+  virtual void WriteDataToFile(std::ofstream & itkNotUsed(os),
+                               OutputImageRegionType itkNotUsed(outputRegionForThread)){}
   
   /** Return true if current process is process parallelized. */
   virtual bool IsProcessParallelized() const;

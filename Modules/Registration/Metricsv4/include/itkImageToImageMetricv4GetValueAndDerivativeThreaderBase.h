@@ -186,10 +186,10 @@ protected:
   mutable AlignedGetValueAndDerivativePerThreadStruct * m_GetValueAndDerivativePerThreadVariables;
   
   /** Read results from other parallel processes from file. */
-  virtual void ReadProcessDataFromFile() ITK_OVERRIDE;
+  virtual void ReadDataFromFile(std::ifstream & is, ThreadIdType threadId);
   
   /** Write results from ThreadedGenerate Data to file. */
-  virtual void WriteProcessDataToFile() ITK_OVERRIDE;
+  virtual void WriteDataToFile(std::ofstream & os, ThreadIdType threadId);
 
   /** Helper function for ReadProcessDataFromFile. */
   virtual void ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId);

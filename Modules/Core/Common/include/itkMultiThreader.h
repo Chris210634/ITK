@@ -218,7 +218,19 @@ public:
 #else
   /** get the Process number assigned to this process by 
     * environmental variable ITK_PROCESS_NUMBER. */
-  static ThreadProcessIdType GetThreadNumber();
+  static ThreadProcessIdType GetWorkerNumber();
+
+  static unsigned int GetNumberOfWorkers();
+
+  static unsigned int GetThreadsPerWorker();
+
+  static unsigned int GetTotalNumberOfThreads();
+
+  static unsigned int GetLastThreadId();
+
+  static unsigned int GetFirstThreadId();
+
+  static ThreadProcessIdType ConvertThreadId(ThreadProcessIdType threadId, int threadCount);
 
   /** Set input file stream is to read from data file of process #threadHandle. */
   static void GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle);
@@ -261,7 +273,7 @@ public:
   static std::string to_string(unsigned int i);
 
   /** These two functions should not be called and are only 
-    * declared so the code compiles. */
+    * declared so the code compiles. 
   ThreadIdType SpawnThread(ThreadFunctionType itkNotUsed(f), void * itkNotUsed(data))
     {
     std::cerr << "itk::MultiThreader::SpawnThread is not implemented. Exiting ... \n";
@@ -273,6 +285,9 @@ public:
     std::cerr << "itk::MultiThreader::TerminateThread is not implemented. Exiting ... \n";
     MultiThreader::Exit();
     };
+    */
+  ThreadIdType SpawnThread(ThreadFunctionType f, void * data);
+  void TerminateThread(ThreadIdType thread_id);
 #endif 
 
   /** This is the structure that is passed to the thread that is
@@ -376,19 +391,19 @@ private:
    * exceptions thrown by the threads. */
   static ITK_THREAD_RETURN_TYPE SingleMethodProxy(void *arg);
 
-#ifndef ITK_USE_PARALLEL_PROCESSES
   /**  Platform specific number of threads */
   static ThreadIdType  GetGlobalDefaultNumberOfThreadsByPlatform();
-
-  /** Assign work to a thread in the thread pool */
-  ThreadProcessIdType ThreadPoolDispatchSingleMethodThread(ThreadInfoStruct *);
-  /** wait for a thread in the threadpool to finish work */
-  void ThreadPoolWaitForSingleMethodThread(ThreadProcessIdType);
 
   /** spawn a new thread for the SingleMethod */
   ThreadProcessIdType SpawnDispatchSingleMethodThread(ThreadInfoStruct *);
   /** wait for a thread in the threadpool to finish work */
   void SpawnWaitForSingleMethodThread(ThreadProcessIdType);
+
+#ifndef ITK_USE_PARALLEL_PROCESSES
+  /** Assign work to a thread in the thread pool */
+  ThreadProcessIdType ThreadPoolDispatchSingleMethodThread(ThreadInfoStruct *);
+  /** wait for a thread in the threadpool to finish work */
+  void ThreadPoolWaitForSingleMethodThread(ThreadProcessIdType);
 
   /** Spawn a thread for the prescribed SingleMethod.  This routine
    * spawns a thread to the SingleMethodProxy which runs the
@@ -405,7 +420,11 @@ private:
 
 #else
   /* Number assigned by ITK_PROCESS_NUMBER */
-  static ThreadIdType m_ThreadNumber;
+  static ThreadIdType m_WorkerNumber;
+  static unsigned int m_NumberOfWorkers;
+  static unsigned int m_ThreadsPerWorker;
+  static unsigned int m_FirstThreadId;
+  static unsigned int m_LastThreadId;
 
   /* Stage number to synchronize processes. Starts from 0 */
   static unsigned long m_CurrentStage;

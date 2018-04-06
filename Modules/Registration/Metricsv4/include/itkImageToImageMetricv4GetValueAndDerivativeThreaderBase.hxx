@@ -335,32 +335,19 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::ReadProcessDataFromFile()
+::ReadDataFromFile(std::ifstream & is, ThreadIdType threadId)
 {
-  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
-  const ThreadIdType numThreadsUsed = this->GetNumberOfThreadsUsed();
-  /* read results from parallel processes */
-  for (ThreadIdType i = 0; i < numThreadsUsed; ++i)
-    {
-    if (i == threadId) continue;
-    std::ifstream ifs;
-    this->GetMultiThreader()->GetIfstream(ifs, i);
-    this->ReadValueAndDerivativeFromFile(ifs, i);
-    ifs.close();
-    }
+  this->ReadValueAndDerivativeFromFile(is, threadId);
+  is.close();
 }
 
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::WriteProcessDataToFile()
+::WriteDataToFile(std::ofstream & os, ThreadIdType threadId)
 {
-  const ThreadIdType threadId = this->GetMultiThreader()->GetThreadNumber();
-  //Write fitness values and derivatives to file
-  std::ofstream ofs;
-  this->GetMultiThreader()->GetOfstream(ofs, threadId);
-  this->WriteValueAndDerivativeToFile(ofs, threadId);
-  ofs.close();
+  this->WriteValueAndDerivativeToFile(os, threadId);
+  os.close();
 }
 
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >

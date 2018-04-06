@@ -209,15 +209,15 @@ void MultiThreader::TerminateThread(ThreadIdType ThreadID)
   m_SpawnedThreadActiveFlagLock[ThreadID] = ITK_NULLPTR;
   m_SpawnedThreadActiveFlagLock[ThreadID] = ITK_NULLPTR;
 }
-
+/*
 void
 MultiThreader
 ::ThreadPoolWaitForSingleMethodThread(ThreadProcessIdType threadHandle)
 {
   itkDebugMacro(<<  std::endl << "For wait : threadhandle :" << threadHandle << std::endl );
   m_ThreadPool->WaitForJobOnThreadHandle(threadHandle);
-}
-
+}*/
+/*
 ThreadProcessIdType
 MultiThreader
 ::ThreadPoolDispatchSingleMethodThread(MultiThreader::ThreadInfoStruct *threadInfo)
@@ -229,7 +229,7 @@ MultiThreader
   ThreadProcessIdType returnHandle = m_ThreadPool->AssignWork(threadJob);
   itkDebugMacro(<< std::endl << "Got handle :" << returnHandle );
   return returnHandle;
-}
+}*/
 
 void
 MultiThreader

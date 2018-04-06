@@ -141,11 +141,16 @@ protected:
    * control to the ThreadFunctor. */
   static ITK_THREAD_RETURN_TYPE ThreaderCallback( void *arg );
 
+  void ReadDataFromFileWrapper();
+  void WriteDataToFileWrapper();
+
   /** Reads results from other processes from file. */
-  virtual void ReadProcessDataFromFile(){}
+  virtual void ReadDataFromFile(std::ifstream & itkNotUsed(is),
+                                ThreadIdType itkNotUsed(threadId)){}
   
   /** Writes results from current process's ThreadedExecution to file.*/
-  virtual void WriteProcessDataToFile(){}
+  virtual void WriteDataToFile(std::ofstream & itkNotUsed(os),
+                               ThreadIdType itkNotUsed(threadId)){}
   
   /** Return true if current process is process parallelized. */
   virtual bool IsProcessParallelized() const;
