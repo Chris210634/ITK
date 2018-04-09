@@ -103,18 +103,8 @@ ImageToHistogramFilter< TImage >
 ::BeforeThreadedGenerateData()
 {
   // find the actual number of threads
-#ifndef ITK_USE_PARALLEL_PROCESSES
-  long nbOfThreads = this->GetNumberOfThreads();
-  if ( itk::MultiThreader::GetGlobalMaximumNumberOfThreads() != 0 )
-    {
-    nbOfThreads = std::min( this->GetNumberOfThreads(), itk::MultiThreader::GetGlobalMaximumNumberOfThreads() );
-    }
-#else
-  long nbOfThreads = 1;
-#endif
-  // number of threads can be constrained by the region size, so call the
-  // SplitRequestedRegion
-  // to get the real number of threads which will be used
+  long nbOfThreads = MultiThreader::GetThreadsPerWorker();
+
   RegionType splitRegion;  // dummy region - just to call the following method
   nbOfThreads = this->SplitRequestedRegion(0, nbOfThreads, splitRegion);
 
@@ -174,9 +164,9 @@ ImageToHistogramFilter< TImage >
     this->ThreadedComputeMinimumAndMaximum( inputRegionForThread, threadId, progress );
 
     // wait for the other threads to complete their part
-#ifndef ITK_USE_PARALLEL_PROCESSES
+//#ifndef ITK_USE_PARALLEL_PROCESSES
     m_Barrier->Wait();
-#endif
+//#endif
 
     // a non multithreaded part
     if( threadId == 0 )

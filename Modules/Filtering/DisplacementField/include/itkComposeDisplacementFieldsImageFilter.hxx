@@ -139,7 +139,6 @@ void
 ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
 ::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### ComposeDisplacementFieldsImageFilter Read Data\n";
   OutputFieldType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;
@@ -158,7 +157,6 @@ void
 ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
 ::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### ComposeDisplacementFieldsImageFilter Write Data\n";
   OutputFieldType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;

@@ -85,23 +85,15 @@ DomainThreader< TDomainPartitioner, TAssociate >
     // This calls ThreadedExecution in each thread.
     this->StartThreadingSequence();
 
-    this->WriteDataToFileWrapper();
-    // Wait for other processes to finish
-    this->GetMultiThreader()->Barrier();
- 
-    // Read data from other processes
-    this->ReadDataFromFileWrapper();
-    // Wait for all parallel processes to catch up.
-    // This prevents one process to overwrite its data file before 
-    // all other processes get a chance to read it.
-    this->GetMultiThreader()->Barrier();
+    this->GetMultiThreader()->GlobalBarrier();
 
     this->AfterThreadedExecution();
     }
   else
     {
     /* Not processs parallelized */
-    this->GetMultiThreader()->SetNumberOfThreads(1);
+    this->GetMultiThreader()->SetNumberOfThreads(MultiThreader::GetThreadsPerWorker());
+    //this->GetMultiThreader()->SetNumberOfThreads(1);
     this->StartThreadingSequence();
     this->AfterThreadedExecution();
     }
@@ -110,33 +102,32 @@ DomainThreader< TDomainPartitioner, TAssociate >
 template< typename TDomainPartitioner, typename TAssociate >
 void
 DomainThreader< TDomainPartitioner, TAssociate >
-::ReadDataFromFileWrapper()
+::ReadDataFromFileWrapper(unsigned int localThreadId)
 {
-  for (unsigned int threadId = 0 ; threadId < this->m_NumberOfThreadsUsed ; ++threadId)
+  unsigned int threadsPerWorker = MultiThreader::GetThreadsPerWorker();
+  unsigned int numberOfThreadsWritten = 0;
+  if ( MultiThreader::GetFirstThreadId() < this->m_NumberOfThreadsUsed )
     {
-    if (threadId > MultiThreader::GetLastThreadId() or threadId < MultiThreader::GetFirstThreadId() )
-      {
-      std::ifstream ifs;
-      this->GetMultiThreader()->GetIfstream(ifs, threadId);
-      this->ReadDataFromFile(ifs, threadId);
-      }
+    numberOfThreadsWritten = this->m_NumberOfThreadsUsed - MultiThreader::GetFirstThreadId();
     }
-}
-
-template< typename TDomainPartitioner, typename TAssociate >
-void
-DomainThreader< TDomainPartitioner, TAssociate >
-::WriteDataToFileWrapper()
-{
-  for (unsigned int threadId = MultiThreader::GetFirstThreadId() ;
-       threadId <= MultiThreader::GetLastThreadId() ; ++threadId)
+  if ( numberOfThreadsWritten > threadsPerWorker)
     {
-    if (threadId < this->m_NumberOfThreadsUsed)
-      {
-      std::ofstream ofs;
-      this->GetMultiThreader()->GetOfstream(ofs, threadId);
-      this->WriteDataToFile(ofs, threadId);
-      }
+    numberOfThreadsWritten = threadsPerWorker;
+    }
+  unsigned int numberOfThreadsToRead = this->m_NumberOfThreadsUsed - numberOfThreadsWritten;
+  MultiThreader::ThreadBlock tb = MultiThreader::DistributeJobsEvenly(
+                                                       threadsPerWorker,
+                                                       numberOfThreadsToRead,
+                                                       localThreadId);
+
+  for (unsigned int k = tb.firstIndex ; k < tb.firstIndex + tb.length ; ++ k )
+    {
+    unsigned int globalThreadId = MultiThreader::MapIndexToGlobalThreadId(k,
+                                                           MultiThreader::GetFirstThreadId(),
+                                                           MultiThreader::GetLastThreadId() );
+    std::ifstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId);
+    this->ReadDataFromFile(ifs, globalThreadId);
     }
 }
 
@@ -173,7 +164,6 @@ void
 DomainThreader< TDomainPartitioner, TAssociate >
 ::DetermineNumberOfThreadsUsed()
 {
-  //const ThreadIdType threaderNumberOfThreads = this->GetMultiThreader()->GetNumberOfThreads();
   const ThreadIdType threaderNumberOfThreads = this->GetMultiThreader()->GetTotalNumberOfThreads();
 
   // Attempt a single dummy partition, just to get the number of subdomains actually created
@@ -222,27 +212,40 @@ DomainThreader< TDomainPartitioner, TAssociate >
   MultiThreader::ThreadInfoStruct* info = static_cast<MultiThreader::ThreadInfoStruct *>(arg);
   ThreadStruct *str = static_cast<ThreadStruct *>(info->UserData);
   DomainThreader *thisDomainThreader = str->domainThreader;
-  const ThreadIdType threadCount = info->NumberOfThreads;
-  ThreadIdType threadId = MultiThreader::ConvertThreadId( info->ThreadID, threadCount );
-
-  // Get the sub-domain to process for this thread.
+  ThreadIdType  total, localThreadId, globalThreadId, threadCount;
   DomainType subdomain;
-  const ThreadIdType total = thisDomainThreader->GetDomainPartitioner()->PartitionDomain(threadId,
+  localThreadId = info->ThreadID;
+
+  if ( not thisDomainThreader->IsProcessParallelized() or MultiThreader::GetNumberOfWorkers() == 1)
+    {
+    threadCount = MultiThreader::GetThreadsPerWorker();
+    total = thisDomainThreader->GetDomainPartitioner()->PartitionDomain(localThreadId,
                                             threadCount,
                                             thisDomainThreader->m_CompleteDomain,
                                             subdomain);
-
-  // Execute the actual method with appropriate sub-domain.
-  // If the threadId is greater than the total number of regions
-  // that PartitionDomain will create, don't use this thread.
-  // Sometimes the threads dont break up very well and it is just
-  // as efficient to leave a few threads idle.
-  if ( threadId < total )
-    {
-    std::cerr << "*** DomainThreader thread # " << threadId << '\n';
-    thisDomainThreader->ThreadedExecution( subdomain, threadId );
+    if ( localThreadId < total )
+      {
+      thisDomainThreader->ThreadedExecution( subdomain, localThreadId );
+      }
+    return ITK_THREAD_RETURN_VALUE;
     }
 
+  // Process Parallelized and MultiWorker Execution
+  threadCount = info->NumberOfThreads;
+  globalThreadId = MultiThreader::ConvertThreadId( localThreadId, threadCount );
+  total = thisDomainThreader->GetDomainPartitioner()->PartitionDomain(globalThreadId,
+                                            threadCount,
+                                            thisDomainThreader->m_CompleteDomain,
+                                            subdomain);
+  if ( globalThreadId < total )
+    {
+    thisDomainThreader->ThreadedExecution( subdomain, globalThreadId );
+    std::ofstream ofs;
+    MultiThreader::GetOfstream(ofs, globalThreadId);
+    thisDomainThreader->WriteDataToFile(ofs, globalThreadId);
+    }
+  MultiThreader::ThreadedBarrier(localThreadId);
+  thisDomainThreader->ReadDataFromFileWrapper(localThreadId);
   return ITK_THREAD_RETURN_VALUE;
 }
 }

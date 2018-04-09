@@ -141,8 +141,7 @@ protected:
    * control to the ThreadFunctor. */
   static ITK_THREAD_RETURN_TYPE ThreaderCallback( void *arg );
 
-  void ReadDataFromFileWrapper();
-  void WriteDataToFileWrapper();
+  void ReadDataFromFileWrapper(unsigned int localThreadId);
 
   /** Reads results from other processes from file. */
   virtual void ReadDataFromFile(std::ifstream & itkNotUsed(is),

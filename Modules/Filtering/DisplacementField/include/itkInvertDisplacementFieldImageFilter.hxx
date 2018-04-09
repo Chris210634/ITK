@@ -145,15 +145,15 @@ InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
     this->m_DoThreadedEstimateInverse = false;
     typename ImageSource<TOutputImage>::ThreadStruct str0;
     str0.Filter = this;
-    this->GetMultiThreader()->SetNumberOfThreads(1);
+    const OutputFieldType *outputPtr = this->GetOutput();
+    const ImageRegionSplitterBase * splitter = this->GetImageRegionSplitter();
+    const ThreadIdType threaderNumberOfThreads = this->GetMultiThreader()->GetTotalNumberOfThreads();
+    const unsigned int validThreads = splitter->GetNumberOfSplits( outputPtr->GetRequestedRegion(), threaderNumberOfThreads);
+
+    this->GetMultiThreader()->SetNumberOfThreads( validThreads );
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str0 );
     this->GetMultiThreader()->SingleMethodExecute();
-#ifdef ITK_USE_PARALLEL_PROCESSES
-    //this->WriteDataToFileWrapper();
-    //this->GetMultiThreader()->Barrier();
-    //this->ReadDataFromFileWrapper();
-    //this->GetMultiThreader()->Barrier();
-#endif
+    this->GetMultiThreader()->GlobalBarrier();
 
     this->m_MeanErrorNorm /= static_cast<RealType>( numberOfPixelsInRegion );
 
@@ -169,15 +169,11 @@ InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
     this->m_DoThreadedEstimateInverse = true;
     typename ImageSource<TOutputImage>::ThreadStruct str1;
     str1.Filter = this;
-    this->GetMultiThreader()->SetNumberOfThreads(1);
+    //this->GetMultiThreader()->SetNumberOfThreads(1);
+    this->GetMultiThreader()->SetNumberOfThreads( validThreads );
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str1 );
     this->GetMultiThreader()->SingleMethodExecute();
-#ifdef ITK_USE_PARALLEL_PROCESSES
-    //this->WriteDataToFileWrapper();
-    //this->GetMultiThreader()->Barrier();
-    //this->ReadDataFromFileWrapper();
-    //this->GetMultiThreader()->Barrier();
-#endif
+    this->GetMultiThreader()->GlobalBarrier();
     }
 }
 
@@ -281,7 +277,6 @@ void
 InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
 ::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### InvertDisplacementFieldImageFilter Read Data\n";
   OutputFieldType *outputPtr = this->GetOutput();
   typename DisplacementFieldType::PixelType pixvalI;
   VectorType                       pixvalE;
@@ -323,7 +318,6 @@ void
 InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
 ::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### InvertDisplacementFieldImageFilter Write Data\n";
   OutputFieldType *outputPtr = this->GetOutput();
   typename DisplacementFieldType::PixelType pixvalI;
   VectorType                       pixvalE;

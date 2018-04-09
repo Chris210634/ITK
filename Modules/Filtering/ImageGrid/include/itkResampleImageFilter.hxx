@@ -599,7 +599,6 @@ void
 ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
 ::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### ResampleImageFilter Read Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;
@@ -621,7 +620,6 @@ void
 ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
 ::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### ResampleImageFilter Write Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;

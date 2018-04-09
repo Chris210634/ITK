@@ -282,7 +282,6 @@ void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
 ::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### BinaryFunctorImageFilter Read Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   OutputImagePixelType  pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;
@@ -301,7 +300,6 @@ void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
 ::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### BinaryFunctorImageFilter Write Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   OutputImagePixelType  pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;

@@ -133,7 +133,6 @@ void
 VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
 ::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### VectorNeighborhoodOperatorImageFilter Read Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;
@@ -152,7 +151,6 @@ void
 VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
 ::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
 {
-  std::cerr << "### VectorNeighborhoodOperatorImageFilter Write Data\n";
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
   typedef ImageRegionIterator< TOutputImage > OutputIterator;

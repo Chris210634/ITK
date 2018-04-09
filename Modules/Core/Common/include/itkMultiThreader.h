@@ -31,6 +31,7 @@
 #include "itkMutexLock.h"
 #include "itkThreadSupport.h"
 #include "itkIntTypes.h"
+#include "itkBarrier.h"
 
 #include "itkThreadPool.h"
 #include <iostream>
@@ -199,7 +200,7 @@ public:
     std::cerr << "itk::MultiThreader::ProcessDone is not implemented. Exiting ... \n";
     exit(1);
     };
-  static void Barrier()
+  static void GlobalBarrier()
     {
     std::cerr << "itk::MultiThreader::Barrier is not implemented. Exiting ... \n";
     exit(1);
@@ -230,6 +231,17 @@ public:
 
   static unsigned int GetFirstThreadId();
 
+  struct ThreadBlock {
+    unsigned int firstIndex;
+    unsigned int length;
+  };
+
+  static ThreadBlock DistributeJobsEvenly(unsigned int nWorkers,
+                                          unsigned int nJobs, unsigned int workerId);
+  static unsigned int MapIndexToGlobalThreadId(unsigned int jobIndex,
+                                               unsigned int firstThreadId,
+                                               unsigned int lastThreadId);
+
   static ThreadProcessIdType ConvertThreadId(ThreadProcessIdType threadId, int threadCount);
 
   /** Set input file stream is to read from data file of process #threadHandle. */
@@ -255,7 +267,9 @@ public:
     * Each time a processs hits a barrier, the stage number should
     * increase by one. 
     * Barriers are used to synchronize timing of parallel processes. */
-  static void Barrier();
+  static void GlobalBarrier();
+
+  static void ThreadedBarrier(unsigned int localThreadId);
 
   /** Call if process needs to exit. This writes the max unsigned long to 
     * the barrier file, which tells other processes to exit. */
@@ -425,6 +439,7 @@ private:
   static unsigned int m_ThreadsPerWorker;
   static unsigned int m_FirstThreadId;
   static unsigned int m_LastThreadId;
+  static Barrier::Pointer m_localThreadBarrier;
 
   /* Stage number to synchronize processes. Starts from 0 */
   static unsigned long m_CurrentStage;

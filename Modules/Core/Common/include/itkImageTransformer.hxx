@@ -287,11 +287,9 @@ ImageTransformer< TInputImage >
   // Set up the multithreaded processing
   ThreadStruct str;
   str.Filter = this;
-#ifndef ITK_USE_PARALLEL_PROCESSES
-  this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
-#else
-  this->GetMultiThreader()->SetNumberOfThreads(1);
-#endif
+
+  this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+
   this->GetMultiThreader()->SetSingleMethod(this->ThreaderCallback, &str);
 
   // multithread the execution
@@ -334,7 +332,7 @@ ImageTransformer< TInputImage >
   ThreadIdType  total, threadId, threadCount;
 
   threadId = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->ThreadID;
-  threadCount = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->NumberOfThreads;
+  threadCount = MultiThreader::GetThreadsPerWorker();
 
   str = (ThreadStruct *)( ( (MultiThreader::ThreadInfoStruct *)( arg ) )->UserData );
 

@@ -291,11 +291,10 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
   typename ImageSource<TOutputImage>::ThreadStruct str1;
   str1.Filter = this;
 
-#ifndef ITK_USE_PARALLEL_PROCESSES
-  this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
-#else
-  this->GetMultiThreader()->SetNumberOfThreads(1);
-#endif
+  this->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+
+  this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+
   this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str1 );
 
   // Multithread the generation of the control point lattice.
@@ -377,11 +376,8 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
     typename ImageSource<ImageType>::ThreadStruct str2;
     str2.Filter = this;
     
-#ifndef ITK_USE_PARALLEL_PROCESSES
-    this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
-#else
-    this->GetMultiThreader()->SetNumberOfThreads(1);
-#endif
+    this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str2 );
 
     // Multithread the generation of the control point lattice.
@@ -421,11 +417,8 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
     typename ImageSource<ImageType>::ThreadStruct str3;
     str3.Filter = this;
 
-#ifndef ITK_USE_PARALLEL_PROCESSES
-    this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
-#else
-    this->GetMultiThreader()->SetNumberOfThreads(1);
-#endif
+    this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+
     this->GetMultiThreader()->SetSingleMethod( this->ThreaderCallback, &str3 );
 
 //    this->BeforeThreadedGenerateData();
@@ -484,7 +477,8 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
   // number.
   if( !this->m_IsFittingComplete )
     {
-    return this->GetNumberOfThreads();
+    //return this->GetNumberOfThreads();
+    return num;
     }
   else // we split on the output region for reconstruction
     {
@@ -588,12 +582,8 @@ BSplineScatteredDataPointSetToImageFilter<TInputPointSet, TOutputImage>
     }
 
   // Determine which points should be handled by this particular thread.
+  ThreadIdType numberOfThreads = MultiThreader::GetThreadsPerWorker();
 
-#ifndef ITK_USE_PARALLEL_PROCESSES
-  ThreadIdType numberOfThreads = this->GetNumberOfThreads();
-#else
-  ThreadIdType numberOfThreads = 1;
-#endif
   SizeValueType numberOfPointsPerThread = static_cast<SizeValueType>(
     input->GetNumberOfPoints() / numberOfThreads );
 

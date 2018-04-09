@@ -256,23 +256,15 @@ ImageSource< TOutputImage >
     // This calls ThreadedGenerateData in each thread.
     this->GetMultiThreader()->SingleMethodExecute();
 
-    WriteDataToFileWrapper();
-
-    // Wait for other processes to finish
-    this->GetMultiThreader()->Barrier();
-
-    ReadDataFromFileWrapper();
-    // Wait for all parallel processes to catch up.
-    // This prevents one process to overwrite its data file before 
-    // all other processes get a chance to read it.
-    this->GetMultiThreader()->Barrier();
+    this->GetMultiThreader()->GlobalBarrier();
 
     this->AfterThreadedGenerateData();
     }
   else
     {
     /* Not processs parallelized */
-    this->GetMultiThreader()->SetNumberOfThreads(1);
+    this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
+    //this->GetMultiThreader()->SetNumberOfThreads(1);
     this->GetMultiThreader()->SingleMethodExecute();
     this->AfterThreadedGenerateData();
     }
@@ -281,7 +273,7 @@ ImageSource< TOutputImage >
 template< typename TOutputImage >
 void
 ImageSource< TOutputImage >
-::ReadDataFromFileWrapper()
+::ReadDataFromFileWrapper(unsigned int localThreadId)
 {
   const OutputImageType *outputPtr = this->GetOutput();
   const ImageRegionSplitterBase * splitter = this->GetImageRegionSplitter();
@@ -289,40 +281,31 @@ ImageSource< TOutputImage >
   const unsigned int validThreads = splitter->GetNumberOfSplits( outputPtr->GetRequestedRegion(), threaderNumberOfThreads);
   typename TOutputImage::RegionType splitRegion;
 
-  for (unsigned int threadId = 0 ; threadId < validThreads ; ++threadId)
+  unsigned int threadsPerWorker = MultiThreader::GetThreadsPerWorker();
+  unsigned int numberOfThreadsWritten = 0;
+  if ( MultiThreader::GetFirstThreadId() < validThreads )
     {
-    if (threadId > MultiThreader::GetLastThreadId() or threadId < MultiThreader::GetFirstThreadId() )
-      {
-      std::ifstream ifs;
-      this->SplitRequestedRegion(threadId, threaderNumberOfThreads, splitRegion);
-      this->GetMultiThreader()->GetIfstream(ifs, threadId);
-      this->ReadDataFromFile(ifs, splitRegion);
-      }
+    numberOfThreadsWritten = validThreads - MultiThreader::GetFirstThreadId();
     }
-}
-
-template< typename TOutputImage >
-void
-ImageSource< TOutputImage >
-::WriteDataToFileWrapper()
-{
-  // This communicates the data from current process to other processes.
-  const OutputImageType *outputPtr = this->GetOutput();
-  const ImageRegionSplitterBase * splitter = this->GetImageRegionSplitter();
-  const ThreadIdType threaderNumberOfThreads = this->GetMultiThreader()->GetTotalNumberOfThreads();
-  const unsigned int validThreads = splitter->GetNumberOfSplits( outputPtr->GetRequestedRegion(), threaderNumberOfThreads);
-  typename TOutputImage::RegionType splitRegion;
-
-  for (unsigned int threadId = MultiThreader::GetFirstThreadId() ;
-       threadId <= MultiThreader::GetLastThreadId() ; ++threadId)
+  if ( numberOfThreadsWritten > threadsPerWorker)
     {
-    if (threadId < validThreads)
-      {
-      std::ofstream ofs;
-      this->SplitRequestedRegion(threadId, threaderNumberOfThreads, splitRegion);
-      this->GetMultiThreader()->GetOfstream(ofs, threadId);
-      this->WriteDataToFile(ofs, splitRegion);
-      }
+    numberOfThreadsWritten = threadsPerWorker;
+    }
+  unsigned int numberOfThreadsToRead = validThreads - numberOfThreadsWritten;
+  MultiThreader::ThreadBlock tb = MultiThreader::DistributeJobsEvenly(
+                                                       threadsPerWorker,
+                                                       numberOfThreadsToRead,
+                                                       localThreadId);
+
+  for (unsigned int k = tb.firstIndex ; k < tb.firstIndex + tb.length ; ++ k )
+    {
+    unsigned int globalThreadId = MultiThreader::MapIndexToGlobalThreadId(k,
+                                                           MultiThreader::GetFirstThreadId(),
+                                                           MultiThreader::GetLastThreadId() );
+    std::ifstream ifs;
+    this->SplitRequestedRegion(globalThreadId, threaderNumberOfThreads, splitRegion);
+    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId);
+    this->ReadDataFromFile(ifs, splitRegion);
     }
 }
 
@@ -402,31 +385,38 @@ ImageSource< TOutputImage >
 ::ThreaderCallback(void *arg)
 {
   ThreadStruct *str;
-  ThreadIdType  total, threadId, threadCount;
-
-  threadId = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->ThreadID;
-  threadCount = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->NumberOfThreads;
-  threadId = MultiThreader::ConvertThreadId( threadId, threadCount );
+  ThreadIdType  total, localThreadId, globalThreadId, threadCount;
+  typename TOutputImage::RegionType splitRegion;
+  localThreadId = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->ThreadID;
   str = (ThreadStruct *)( ( (MultiThreader::ThreadInfoStruct *)( arg ) )->UserData );
 
-  // execute the actual method with appropriate output region
-  // first find out how many pieces extent can be split into.
-  typename TOutputImage::RegionType splitRegion;
-  total = str->Filter->SplitRequestedRegion(threadId, threadCount,
-                                            splitRegion);
 
-  if ( threadId < total )
+  if ( not str->Filter->IsProcessParallelized() or MultiThreader::GetNumberOfWorkers() == 1)
     {
-    std::cerr << "*** ImageSource thread # " << threadId << '\n';
-    str->Filter->ThreadedGenerateData(splitRegion, 0);
+    threadCount = MultiThreader::GetThreadsPerWorker();
+    total = str->Filter->SplitRequestedRegion(localThreadId, threadCount,
+                                              splitRegion);
+    if ( localThreadId < total )
+      {
+      str->Filter->ThreadedGenerateData(splitRegion, localThreadId);
+      }
+    return ITK_THREAD_RETURN_VALUE;
     }
-  // else
-  //   {
-  //   otherwise don't use this thread. Sometimes the threads dont
-  //   break up very well and it is just as efficient to leave a
-  //   few threads idle.
-  //   }
 
+  // Process Parallelized and MultiWorker Execution
+  threadCount = MultiThreader::GetTotalNumberOfThreads();
+  globalThreadId = MultiThreader::ConvertThreadId( localThreadId, threadCount );
+  total = str->Filter->SplitRequestedRegion(globalThreadId, threadCount,
+                                            splitRegion);
+  if ( globalThreadId < total )
+    {
+    str->Filter->ThreadedGenerateData(splitRegion, globalThreadId);
+    std::ofstream ofs;
+    MultiThreader::GetOfstream(ofs, globalThreadId);
+    str->Filter->WriteDataToFile(ofs, splitRegion);
+    }
+  MultiThreader::ThreadedBarrier(localThreadId);
+  str->Filter->ReadDataFromFileWrapper(localThreadId);
   return ITK_THREAD_RETURN_VALUE;
 }
 } // end namespace itk
