@@ -33,6 +33,7 @@
 #include "itkImageRegionSplitterBase.h"
 
 #include "itkMath.h"
+#include <chrono>
 
 namespace itk
 {
@@ -230,6 +231,7 @@ void
 ImageSource< TOutputImage >
 ::GenerateData()
 {
+  std::chrono::system_clock::time_point a,b,c;
   // Call a method that can be overriden by a subclass to allocate
   // memory for the filter's outputs
   this->AllocateOutputs();
@@ -244,7 +246,7 @@ ImageSource< TOutputImage >
   str.Filter = this;
   this->GetMultiThreader()->SetSingleMethod(this->ThreaderCallback, &str);
 
-  if ( this -> IsProcessParallelized() )
+  if ( this -> IsProcessParallelized()  and MultiThreader::GetNumberOfWorkers() > 1)
     {
     // Determine how many threads will be used.
     const OutputImageType *outputPtr = this->GetOutput();
@@ -254,19 +256,30 @@ ImageSource< TOutputImage >
     this->GetMultiThreader()->SetNumberOfThreads( validThreads );
 
     // This calls ThreadedGenerateData in each thread.
+    a = std::chrono::system_clock::now();
     this->GetMultiThreader()->SingleMethodExecute();
 
     this->GetMultiThreader()->GlobalBarrier();
+    b = std::chrono::system_clock::now();
 
     this->AfterThreadedGenerateData();
+    c = std::chrono::system_clock::now();
+
+    MultiThreader::t_multi_worker_time += b-a;
+    MultiThreader::t_after_threaded_time += c-b;
     }
   else
     {
     /* Not processs parallelized */
     this->GetMultiThreader()->SetNumberOfThreads( MultiThreader::GetThreadsPerWorker() );
-    //this->GetMultiThreader()->SetNumberOfThreads(1);
+    a = std::chrono::system_clock::now();
     this->GetMultiThreader()->SingleMethodExecute();
+    b = std::chrono::system_clock::now();
     this->AfterThreadedGenerateData();
+    c = std::chrono::system_clock::now();
+
+    MultiThreader::t_single_worker_time += b-a;
+    MultiThreader::t_after_threaded_time += c-b;
     }
 }
 
@@ -389,7 +402,8 @@ ImageSource< TOutputImage >
   typename TOutputImage::RegionType splitRegion;
   localThreadId = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->ThreadID;
   str = (ThreadStruct *)( ( (MultiThreader::ThreadInfoStruct *)( arg ) )->UserData );
-
+  
+  std::chrono::system_clock::time_point a,b;
 
   if ( not str->Filter->IsProcessParallelized() or MultiThreader::GetNumberOfWorkers() == 1)
     {
@@ -411,12 +425,17 @@ ImageSource< TOutputImage >
   if ( globalThreadId < total )
     {
     str->Filter->ThreadedGenerateData(splitRegion, globalThreadId);
+    a = std::chrono::system_clock::now();
     std::ofstream ofs;
     MultiThreader::GetOfstream(ofs, globalThreadId);
     str->Filter->WriteDataToFile(ofs, splitRegion);
     }
   MultiThreader::ThreadedBarrier(localThreadId);
   str->Filter->ReadDataFromFileWrapper(localThreadId);
+  b = std::chrono::system_clock::now();
+
+  MultiThreader::t_read_write_time += b-a;
+
   return ITK_THREAD_RETURN_VALUE;
 }
 } // end namespace itk

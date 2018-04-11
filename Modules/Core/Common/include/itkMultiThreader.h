@@ -35,6 +35,7 @@
 
 #include "itkThreadPool.h"
 #include <iostream>
+#include <chrono>
 
 namespace itk
 {
@@ -86,6 +87,13 @@ public:
   typedef Object                   Superclass;
   typedef SmartPointer<Self>       Pointer;
   typedef SmartPointer<const Self> ConstPointer;
+
+  /* Remove later: Timing variables */
+  static std::chrono::duration<double> t_read_write_time;
+  static std::chrono::duration<double> t_after_threaded_time;
+  static std::chrono::duration<double> t_single_worker_time;
+  static std::chrono::duration<double> t_multi_worker_time;
+  /**********************************/
 
   /** Method for creation through the object factory. */
   itkNewMacro(Self);

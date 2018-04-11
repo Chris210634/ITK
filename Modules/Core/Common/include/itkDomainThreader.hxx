@@ -19,6 +19,7 @@
 #define itkDomainThreader_hxx
 
 #include "itkDomainThreader.h"
+#include <chrono>
 
 namespace itk
 {
@@ -72,6 +73,7 @@ void
 DomainThreader< TDomainPartitioner, TAssociate >
 ::Execute( TAssociate * enclosingClass, const DomainType & completeDomain )
 {
+  std::chrono::system_clock::time_point a,b,c;
   this->m_Associate = enclosingClass;
   this->m_CompleteDomain = completeDomain;
 
@@ -80,22 +82,34 @@ DomainThreader< TDomainPartitioner, TAssociate >
   // This function will set number of threads correctly if process parallelized.
   this->BeforeThreadedExecution();
 
-  if ( this -> IsProcessParallelized() )
+  if ( this -> IsProcessParallelized() and MultiThreader::GetNumberOfWorkers() > 1)
     {
     // This calls ThreadedExecution in each thread.
+    a = std::chrono::system_clock::now();
     this->StartThreadingSequence();
 
     this->GetMultiThreader()->GlobalBarrier();
+    b = std::chrono::system_clock::now();
 
     this->AfterThreadedExecution();
+    c = std::chrono::system_clock::now();
+
+    MultiThreader::t_multi_worker_time += b-a;
+    MultiThreader::t_after_threaded_time += c-b;
     }
   else
     {
     /* Not processs parallelized */
     this->GetMultiThreader()->SetNumberOfThreads(MultiThreader::GetThreadsPerWorker());
     //this->GetMultiThreader()->SetNumberOfThreads(1);
+    a = std::chrono::system_clock::now();
     this->StartThreadingSequence();
+    b = std::chrono::system_clock::now();
     this->AfterThreadedExecution();
+    c = std::chrono::system_clock::now();
+
+    MultiThreader::t_single_worker_time += b-a;
+    MultiThreader::t_after_threaded_time += c-b;
     }
 }
 
@@ -216,6 +230,8 @@ DomainThreader< TDomainPartitioner, TAssociate >
   DomainType subdomain;
   localThreadId = info->ThreadID;
 
+  std::chrono::system_clock::time_point a,b;
+
   if ( not thisDomainThreader->IsProcessParallelized() or MultiThreader::GetNumberOfWorkers() == 1)
     {
     threadCount = MultiThreader::GetThreadsPerWorker();
@@ -240,12 +256,17 @@ DomainThreader< TDomainPartitioner, TAssociate >
   if ( globalThreadId < total )
     {
     thisDomainThreader->ThreadedExecution( subdomain, globalThreadId );
+    a = std::chrono::system_clock::now();
     std::ofstream ofs;
     MultiThreader::GetOfstream(ofs, globalThreadId);
     thisDomainThreader->WriteDataToFile(ofs, globalThreadId);
     }
   MultiThreader::ThreadedBarrier(localThreadId);
   thisDomainThreader->ReadDataFromFileWrapper(localThreadId);
+  b = std::chrono::system_clock::now();
+
+  MultiThreader::t_read_write_time += b-a;
+
   return ITK_THREAD_RETURN_VALUE;
 }
 }

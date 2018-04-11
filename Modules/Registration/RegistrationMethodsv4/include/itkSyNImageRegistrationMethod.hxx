@@ -30,6 +30,8 @@
 #include "itkVectorNeighborhoodOperatorImageFilter.h"
 #include "itkWindowConvergenceMonitoringFunction.h"
 
+#include <chrono>
+
 namespace itk
 {
 /**
@@ -249,6 +251,15 @@ SyNImageRegistrationMethod<TFixedImage, TMovingImage, TOutputTransform, TVirtual
       this->m_IsConverged = true;
       }
     reporter.CompletedStep();
+    
+    /* Timing Code Remove before merge */
+    std::cout << " *** "
+      << (double)(MultiThreader::t_single_worker_time.count()) << ','
+      << (double)(MultiThreader::t_multi_worker_time.count()) << ','
+      << (double)(MultiThreader::t_after_threaded_time.count()) << ','
+      << (double)(MultiThreader::t_read_write_time.count()) / (double)(MultiThreader::GetThreadsPerWorker())
+      << '\n';
+    /***********************************/
     }
 }
 

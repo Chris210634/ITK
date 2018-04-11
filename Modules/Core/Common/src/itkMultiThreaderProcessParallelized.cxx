@@ -72,6 +72,10 @@ unsigned int MultiThreader::m_NumberOfWorkers  = 0;
 unsigned int MultiThreader::m_ThreadsPerWorker = 0;
 unsigned int MultiThreader::m_FirstThreadId    = 0;
 unsigned int MultiThreader::m_LastThreadId     = 0;
+std::chrono::duration<double> MultiThreader::t_read_write_time    = std::chrono::duration<double> ::zero();
+std::chrono::duration<double> MultiThreader::t_single_worker_time = std::chrono::duration<double> ::zero();
+std::chrono::duration<double> MultiThreader::t_multi_worker_time  = std::chrono::duration<double> ::zero();
+std::chrono::duration<double> MultiThreader::t_after_threaded_time= std::chrono::duration<double> ::zero();
 Barrier::Pointer MultiThreader::m_localThreadBarrier = Barrier::New();
 
 // Initialize files with default
@@ -708,7 +712,6 @@ MultiThreader::ThreadBlock MultiThreader::DistributeJobsEvenly(unsigned int nWor
                                                 unsigned int nJobs,
                                                 unsigned int workerId)
 {
-
   MultiThreader::ThreadBlock tb;
   unsigned int jobs_per_worker = nJobs / nWorkers;
   unsigned int jobs_remainder  = nJobs % nWorkers;
