@@ -335,7 +335,7 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::ReadDataFromFile(std::ifstream & is, ThreadIdType threadId)
+::ReadDataFromFile(BufferedIfstream & is, ThreadIdType threadId)
 {
   this->ReadValueAndDerivativeFromFile(is, threadId);
   is.close();
@@ -344,7 +344,7 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::WriteDataToFile(std::ofstream & os, ThreadIdType threadId)
+::WriteDataToFile(BufferedOfstream & os, ThreadIdType threadId)
 {
   this->WriteValueAndDerivativeToFile(os, threadId);
   os.close();
@@ -353,7 +353,7 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId)
+::ReadValueAndDerivativeFromFile(BufferedIfstream & is, const ThreadIdType threadId)
 {
   AlignedGetValueAndDerivativePerThreadStruct * const self = 
     & m_GetValueAndDerivativePerThreadVariables[threadId];
@@ -397,7 +397,7 @@ ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImag
 template< typename TDomainPartitioner, typename TImageToImageMetricv4 >
 void
 ImageToImageMetricv4GetValueAndDerivativeThreaderBase< TDomainPartitioner, TImageToImageMetricv4 >
-::WriteValueAndDerivativeToFile(std::ostream& os, const ThreadIdType threadId) const
+::WriteValueAndDerivativeToFile(BufferedOfstream& os, const ThreadIdType threadId) const
 {
   unsigned int vector_size;
   AlignedGetValueAndDerivativePerThreadStruct * const self = &

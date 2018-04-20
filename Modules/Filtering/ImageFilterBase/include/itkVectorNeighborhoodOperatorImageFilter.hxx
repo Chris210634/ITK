@@ -131,7 +131,7 @@ VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
 template< typename TInputImage, typename TOutputImage >
 void
 VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
-::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
+::ReadDataFromFile(BufferedIfstream & is, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
@@ -149,7 +149,7 @@ VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
 template< typename TInputImage, typename TOutputImage >
 void
 VectorNeighborhoodOperatorImageFilter< TInputImage, TOutputImage >
-::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
+::WriteDataToFile(BufferedOfstream & os, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;

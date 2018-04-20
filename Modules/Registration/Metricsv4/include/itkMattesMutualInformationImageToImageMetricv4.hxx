@@ -542,7 +542,7 @@ MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualI
 template <typename TFixedImage, typename TMovingImage, typename TVirtualImage, typename TInternalComputationValueType, typename TMetricTraits>
 void 
 MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualImage, TInternalComputationValueType, TMetricTraits>
-::ReadValueAndDerivativeFromFile( std::istream& is, const ThreadIdType threadId)
+::ReadValueAndDerivativeFromFile( BufferedIfstream& is, const ThreadIdType threadId)
 { 
   JointPDFDerivativesValueType tmp;
   const SizeValueType numberOfVoxels = this->m_NumberOfHistogramBins * this->m_NumberOfHistogramBins;
@@ -570,7 +570,7 @@ MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualI
 template <typename TFixedImage, typename TMovingImage, typename TVirtualImage, typename TInternalComputationValueType, typename TMetricTraits>
 void 
 MattesMutualInformationImageToImageMetricv4<TFixedImage, TMovingImage, TVirtualImage, TInternalComputationValueType, TMetricTraits>
-::WriteValueAndDerivativeToFile( std::ostream& os, const ThreadIdType threadId) const
+::WriteValueAndDerivativeToFile( BufferedOfstream & os, const ThreadIdType threadId) const
 {
   const SizeValueType numberOfVoxels = this->m_NumberOfHistogramBins * this->m_NumberOfHistogramBins;
   JointPDFValueType * tPdfPtr = this->m_ThreaderJointPDF[threadId]->GetBufferPointer();

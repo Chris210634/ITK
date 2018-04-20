@@ -137,7 +137,7 @@ ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
 template<typename InputImage, typename TOutputImage>
 void
 ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
-::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
+::ReadDataFromFile(BufferedIfstream & is, OutputImageRegionType outputRegionForThread)
 {
   OutputFieldType *outputPtr = this->GetOutput();
   PixelType pixval;
@@ -155,7 +155,7 @@ ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
 template<typename InputImage, typename TOutputImage>
 void
 ComposeDisplacementFieldsImageFilter<InputImage, TOutputImage>
-::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
+::WriteDataToFile(BufferedOfstream & os, OutputImageRegionType outputRegionForThread)
 {
   OutputFieldType *outputPtr = this->GetOutput();
   PixelType pixval;

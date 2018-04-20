@@ -275,7 +275,7 @@ InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
 template<typename TInputImage, typename TOutputImage>
 void
 InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
-::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
+::ReadDataFromFile(BufferedIfstream & is, OutputImageRegionType outputRegionForThread)
 {
   OutputFieldType *outputPtr = this->GetOutput();
   typename DisplacementFieldType::PixelType pixvalI;
@@ -316,7 +316,7 @@ InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
 template<typename TInputImage, typename TOutputImage>
 void
 InvertDisplacementFieldImageFilter<TInputImage, TOutputImage>
-::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
+::WriteDataToFile(BufferedOfstream & os, OutputImageRegionType outputRegionForThread)
 {
   OutputFieldType *outputPtr = this->GetOutput();
   typename DisplacementFieldType::PixelType pixvalI;

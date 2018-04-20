@@ -479,7 +479,7 @@ MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomai
 template< typename TDomainPartitioner, typename TImageToImageMetric, typename TMattesMutualInformationMetric >
 void
 MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TMattesMutualInformationMetric >
-::ReadValueAndDerivativeFromFile(std::istream& is, const ThreadIdType threadId)
+::ReadValueAndDerivativeFromFile(BufferedIfstream& is, const ThreadIdType threadId)
 {
   Superclass::ReadValueAndDerivativeFromFile(is,threadId);
   this->m_MattesAssociate->ReadValueAndDerivativeFromFile(is,threadId);
@@ -488,7 +488,7 @@ MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomai
 template< typename TDomainPartitioner, typename TImageToImageMetric, typename TMattesMutualInformationMetric >
 void
 MattesMutualInformationImageToImageMetricv4GetValueAndDerivativeThreader< TDomainPartitioner, TImageToImageMetric, TMattesMutualInformationMetric >
-::WriteValueAndDerivativeToFile(std::ostream& os, const ThreadIdType threadId) const
+::WriteValueAndDerivativeToFile(BufferedOfstream & os, const ThreadIdType threadId) const
 {
   Superclass::WriteValueAndDerivativeToFile(os,threadId);
   this->m_MattesAssociate->WriteValueAndDerivativeToFile(os,threadId);

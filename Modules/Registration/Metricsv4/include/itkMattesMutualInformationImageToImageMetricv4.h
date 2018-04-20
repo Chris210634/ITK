@@ -191,10 +191,10 @@ public:
   virtual void FinalizeThread( const ThreadIdType threadId ) ITK_OVERRIDE;
 
   /** Read results specific to Mattes MI metric from file after parallel execution. */
-  void ReadValueAndDerivativeFromFile( std::istream& is, const ThreadIdType threadId);
+  void ReadValueAndDerivativeFromFile( BufferedIfstream & is, const ThreadIdType threadId);
   
   /** Write results specific to Msttes MI metric to file after parallel execution. */
-  void WriteValueAndDerivativeToFile( std::ostream& os, const ThreadIdType threadId) const;
+  void WriteValueAndDerivativeToFile( BufferedOfstream & os, const ThreadIdType threadId) const;
 
 protected:
   MattesMutualInformationImageToImageMetricv4();

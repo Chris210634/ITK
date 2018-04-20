@@ -118,13 +118,13 @@ protected:
   /** Reimplement Superclass::ReadValueAndDerivativeFromFile
     * to read results specific to Mattes MI metric. 
     */
-  virtual void ReadValueAndDerivativeFromFile(std::istream& is, 
+  virtual void ReadValueAndDerivativeFromFile(BufferedIfstream& is, 
                                               const ThreadIdType threadId) ITK_OVERRIDE;
 
   /** Reimplement Superclass::WriteValueAndDerivativeToFile 
     * to write results specific to Mattes MI metric. 
     */
-  virtual void WriteValueAndDerivativeToFile(std::ostream& os, 
+  virtual void WriteValueAndDerivativeToFile(BufferedOfstream & os, 
                                              const ThreadIdType threadId) const ITK_OVERRIDE;
   
   /* Let DomainThreader know this process is process parallelized. */

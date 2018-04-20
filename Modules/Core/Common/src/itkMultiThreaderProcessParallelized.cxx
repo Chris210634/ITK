@@ -66,12 +66,14 @@ typedef void *( *c_void_cast )(void *);
 
 static SimpleFastMutexLock globalDefaultInitializerLock;
 
+char ** MultiThreader::m_ThreadBuffer          = NULL;
 ThreadIdType MultiThreader::m_WorkerNumber     = 0;
 unsigned long MultiThreader::m_CurrentStage    = 0;
 unsigned int MultiThreader::m_NumberOfWorkers  = 0;
 unsigned int MultiThreader::m_ThreadsPerWorker = 0;
 unsigned int MultiThreader::m_FirstThreadId    = 0;
 unsigned int MultiThreader::m_LastThreadId     = 0;
+unsigned int MultiThreader::m_BufferSize       = 1048576;
 Barrier::Pointer MultiThreader::m_localThreadBarrier = Barrier::New();
 
 // Initialize files with default
@@ -294,6 +296,12 @@ void MultiThreader::ConfigureStaticMembers()
   m_FirstThreadId = m_WorkerNumber * m_ThreadsPerWorker;
   m_LastThreadId  = m_FirstThreadId + m_ThreadsPerWorker - 1;
   m_localThreadBarrier->Initialize(m_ThreadsPerWorker);
+
+  m_ThreadBuffer = new char * [m_ThreadsPerWorker];
+  for ( int i = 0 ; i < m_ThreadsPerWorker ; i++)
+    {
+    m_ThreadBuffer[i] = new char [m_BufferSize];
+    }
 }
 
 // Constructor. Default all the methods to ITK_NULLPTR. Since the
@@ -604,24 +612,28 @@ void MultiThreader::ThreadedBarrier(unsigned int localThreadId)
   m_localThreadBarrier -> Wait();
 }
 
-void MultiThreader::GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle)
+void MultiThreader::GetIfstream(BufferedIfstream & is,
+                                ThreadProcessIdType globalThreadId,
+                                ThreadProcessIdType localThreadId)
 {
-  std::string in_filename = m_DataFilePrefix + to_string((unsigned int)threadHandle);
-  is.open(in_filename.c_str(), std::ios::binary);
+  std::string in_filename = m_DataFilePrefix + to_string((unsigned int)globalThreadId);
+  is.open(in_filename.c_str(), m_ThreadBuffer[localThreadId], m_BufferSize);
 }
 
-void MultiThreader::GetOfstream(std::ofstream & os, ThreadProcessIdType threadHandle)
+void MultiThreader::GetOfstream(BufferedOfstream & os,
+                                ThreadProcessIdType globalThreadId,
+                                ThreadProcessIdType localThreadId)
 {
-  std::string out_filename = m_DataFilePrefix + to_string((unsigned int)threadHandle);
-  os.open(out_filename.c_str(), std::ios::binary);
+  std::string out_filename = m_DataFilePrefix + to_string((unsigned int)globalThreadId);
+  os.open(out_filename.c_str(), m_ThreadBuffer[localThreadId], m_BufferSize);
 }
 
 void MultiThreader::Sync(char * data, std::size_t len)
 {
   if (GetWorkerNumber() == 0)
     {
-    std::ofstream ofs;
-    GetOfstream(ofs,0);
+    BufferedOfstream ofs;
+    GetOfstream(ofs,0,0);
     ofs.write(data,len);
     ofs.close();
     GlobalBarrier();
@@ -629,8 +641,8 @@ void MultiThreader::Sync(char * data, std::size_t len)
   else
     {
     GlobalBarrier();
-    std::ifstream ifs;
-    GetIfstream(ifs,0);
+    BufferedIfstream ifs;
+    GetIfstream(ifs,0,0);
     ifs.read(data,len);
     ifs.close();
     }
@@ -639,8 +651,8 @@ void MultiThreader::Sync(char * data, std::size_t len)
 
 void MultiThreader::Exit()
 {
-  std::ofstream ofs;
-  GetOfstream(ofs,GetWorkerNumber());
+  BufferedOfstream ofs;
+  GetOfstream(ofs,GetWorkerNumber(),0);
   unsigned long max_ulong = ULONG_MAX;
   ofs.write((char*)(&max_ulong),sizeof(max_ulong));
   exit(1);
@@ -744,5 +756,115 @@ unsigned int MultiThreader::MapIndexToGlobalThreadId(unsigned int jobIndex,
   return ret;
 }
 
+BufferedOfstream::BufferedOfstream()
+{
+
+}
+
+BufferedOfstream::~BufferedOfstream()
+{
+  delete this->ofs;
+}
+
+int BufferedOfstream::open(const char* filename, char* buffer, unsigned int size)
+{
+  this->ofs = new std::ofstream;
+  this->ofs->open(filename,std::ios::binary);
+  this->buffer = buffer;
+  this->size = size;
+  this->index = 0;
+  return 0;
+}
+
+int BufferedOfstream::write(char* s, unsigned int n)
+{
+  char * p = s;
+  unsigned int characters_left = n;
+  while ( characters_left > 0 )
+    {
+    this->buffer[this->index] = *p;
+    ++p;
+    ++this->index;
+    characters_left--;
+    if ( this->index >= this->size )
+      {
+      ofs->write(this->buffer,this->size * sizeof(char));
+      this->index = 0;
+      }
+    }
+  return 0;
+}
+
+int BufferedOfstream::reset()
+{
+  this->index = 0;
+  return 0;
+}
+
+int BufferedOfstream::flush()
+{
+  ofs->write(this->buffer,this->index * sizeof(char));
+  this->index = 0;
+  return 0;
+}
+
+int BufferedOfstream::close()
+{
+  this->flush();
+  ofs->close();
+  return 0;
+}
+
+BufferedIfstream::BufferedIfstream()
+{
+
+}
+
+BufferedIfstream::~BufferedIfstream()
+{
+  delete this->ifs;
+}
+
+int BufferedIfstream::open(const char* filename, char* buffer, unsigned int size)
+{
+  this->ifs = new std::ifstream;
+  this->ifs->open(filename,std::ios::binary);
+  this->buffer = buffer;
+  this->size = size;
+  ifs->read(this->buffer,this->size * sizeof(char));
+  this->index = 0;
+  return 0;
+}
+
+int BufferedIfstream::read(char* s, unsigned int n)
+{
+  char * p = s;
+  unsigned int characters_left = n;
+  while ( characters_left > 0 )
+    {
+    *p = this->buffer[this->index];
+    ++p;
+    ++this->index;
+    characters_left--;
+    if ( this->index >= this->size )
+      {
+      ifs->read(this->buffer,this->size * sizeof(char));
+      this->index = 0;
+      }
+    }
+  return 0;
+}
+
+int BufferedIfstream::reset()
+{
+  this->index = 0;
+  return 0;
+}
+
+int BufferedIfstream::close()
+{
+  ifs->close();
+  return 0;
+}
 }
 #endif

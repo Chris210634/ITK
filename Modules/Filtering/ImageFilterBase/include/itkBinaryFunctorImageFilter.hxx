@@ -280,7 +280,7 @@ BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
 template< typename TInputImage1, typename TInputImage2, typename TOutputImage, typename TFunction >
 void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
-::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
+::ReadDataFromFile(BufferedIfstream & is, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   OutputImagePixelType  pixval;
@@ -298,7 +298,7 @@ BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
 template< typename TInputImage1, typename TInputImage2, typename TOutputImage, typename TFunction >
 void
 BinaryFunctorImageFilter< TInputImage1, TInputImage2, TOutputImage, TFunction >
-::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
+::WriteDataToFile(BufferedOfstream & os, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   OutputImagePixelType  pixval;

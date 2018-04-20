@@ -139,11 +139,11 @@ protected:
   void ThreadedGenerateData( const RegionType &, ThreadIdType ) ITK_OVERRIDE;
 
   /** Read results from other parallel processes from file. */
-  virtual void ReadDataFromFile(std::ifstream & is,
+  virtual void ReadDataFromFile(BufferedIfstream & is,
                                 OutputImageRegionType outputRegionForThread) ITK_OVERRIDE;
   
   /** Write results from ThreadedGenerate Data to file. */
-  virtual void WriteDataToFile(std::ofstream & os,
+  virtual void WriteDataToFile(BufferedOfstream & os,
                                OutputImageRegionType outputRegionForThread) ITK_OVERRIDE;
 
   /** This image filter is process parallelized, so return true. */

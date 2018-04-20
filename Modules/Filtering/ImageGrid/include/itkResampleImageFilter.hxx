@@ -597,7 +597,7 @@ template< typename TInputImage,
           typename TTransformPrecisionType >
 void
 ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
-::ReadDataFromFile(std::ifstream & is, OutputImageRegionType outputRegionForThread)
+::ReadDataFromFile(BufferedIfstream & is, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;
@@ -618,7 +618,7 @@ template< typename TInputImage,
           typename TTransformPrecisionType >
 void
 ResampleImageFilter< TInputImage, TOutputImage, TInterpolatorPrecisionType, TTransformPrecisionType >
-::WriteDataToFile(std::ofstream & os, OutputImageRegionType outputRegionForThread)
+::WriteDataToFile(BufferedOfstream & os, OutputImageRegionType outputRegionForThread)
 {
   OutputImageType *outputPtr = this->GetOutput();
   PixelType pixval;

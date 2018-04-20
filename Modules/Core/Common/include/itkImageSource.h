@@ -346,11 +346,11 @@ protected:
   void ReadDataFromFileWrapper(unsigned int localThreadId);
 
   /** Reads results from other processes from file. */
-  virtual void ReadDataFromFile(std::ifstream & itkNotUsed(is),
+  virtual void ReadDataFromFile(BufferedIfstream & itkNotUsed(is),
                                 OutputImageRegionType itkNotUsed(outputRegionForThread)){}
 
   /** Writes results from current process's ThreadedExecution to file.*/
-  virtual void WriteDataToFile(std::ofstream & itkNotUsed(os),
+  virtual void WriteDataToFile(BufferedOfstream & itkNotUsed(os),
                                OutputImageRegionType itkNotUsed(outputRegionForThread)){}
 
   /** Return true if current process is process parallelized. */

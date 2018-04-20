@@ -125,8 +125,8 @@ DomainThreader< TDomainPartitioner, TAssociate >
     unsigned int globalThreadId = MultiThreader::MapIndexToGlobalThreadId(k,
                                                            MultiThreader::GetFirstThreadId(),
                                                            MultiThreader::GetLastThreadId() );
-    std::ifstream ifs;
-    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId);
+    BufferedIfstream ifs;
+    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId, localThreadId);
     this->ReadDataFromFile(ifs, globalThreadId);
     }
 }
@@ -240,8 +240,8 @@ DomainThreader< TDomainPartitioner, TAssociate >
   if ( globalThreadId < total )
     {
     thisDomainThreader->ThreadedExecution( subdomain, globalThreadId );
-    std::ofstream ofs;
-    MultiThreader::GetOfstream(ofs, globalThreadId);
+    BufferedOfstream ofs;
+    MultiThreader::GetOfstream(ofs, globalThreadId, localThreadId);
     thisDomainThreader->WriteDataToFile(ofs, globalThreadId);
     }
   MultiThreader::ThreadedBarrier(localThreadId);

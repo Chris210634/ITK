@@ -302,9 +302,9 @@ ImageSource< TOutputImage >
     unsigned int globalThreadId = MultiThreader::MapIndexToGlobalThreadId(k,
                                                            MultiThreader::GetFirstThreadId(),
                                                            MultiThreader::GetLastThreadId() );
-    std::ifstream ifs;
+    BufferedIfstream ifs;
     this->SplitRequestedRegion(globalThreadId, threaderNumberOfThreads, splitRegion);
-    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId);
+    this->GetMultiThreader()->GetIfstream(ifs, globalThreadId, localThreadId);
     this->ReadDataFromFile(ifs, splitRegion);
     }
 }
@@ -411,8 +411,8 @@ ImageSource< TOutputImage >
   if ( globalThreadId < total )
     {
     str->Filter->ThreadedGenerateData(splitRegion, globalThreadId);
-    std::ofstream ofs;
-    MultiThreader::GetOfstream(ofs, globalThreadId);
+    BufferedOfstream ofs;
+    MultiThreader::GetOfstream(ofs, globalThreadId, localThreadId);
     str->Filter->WriteDataToFile(ofs, splitRegion);
     }
   MultiThreader::ThreadedBarrier(localThreadId);

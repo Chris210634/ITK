@@ -78,6 +78,39 @@ namespace itk
  * Threading is nor supported in process parallelized build.
  */
 
+class BufferedOfstream
+{
+public:
+  BufferedOfstream();
+  ~BufferedOfstream();
+  int open(const char* filename, char* buffer, unsigned int size);
+  int write(char* s, unsigned int n);
+  int reset();
+  int flush();
+  int close();
+private:
+  char * buffer;
+  unsigned int size;
+  unsigned int index; // anything past this index is invalid data
+  std::ofstream * ofs;
+};
+
+class BufferedIfstream
+{
+public:
+  BufferedIfstream();
+  ~BufferedIfstream();
+  int open(const char* filename, char* buffer, unsigned int size);
+  int read(char* s, unsigned int n);
+  int reset();
+  int close();
+private:
+  char * buffer;
+  unsigned int size;
+  unsigned int index;
+  std::ifstream * ifs;
+};
+
 class ITKCommon_EXPORT MultiThreader : public Object
 {
 public:
@@ -185,7 +218,7 @@ public:
     exit(1);
     return (ThreadProcessIdType)(0);
     };
-  static void GetIfstream(std::ifstream & itkNotUsed(is), ThreadProcessIdType itkNotUsed(threadHandle))
+  static void GetIfstream( BufferedIfstream & itkNotUsed(is), ThreadProcessIdType itkNotUsed(threadHandle))
     {
     std::cerr << "itk::MultiThreader::GetIfstream is not implemented. Exiting ... \n";
     exit(1);
@@ -245,10 +278,14 @@ public:
   static ThreadProcessIdType ConvertThreadId(ThreadProcessIdType threadId, int threadCount);
 
   /** Set input file stream is to read from data file of process #threadHandle. */
-  static void GetIfstream(std::ifstream & is, ThreadProcessIdType threadHandle);
+  static void GetIfstream(BufferedIfstream & is,
+                          ThreadProcessIdType globalThreadId,
+                          ThreadProcessIdType localThreadId);
 
   /** Set output file stream os to write to data file of process #threadHandle. */
-  static void GetOfstream(std::ofstream & os, ThreadProcessIdType threadHandle);
+  static void GetOfstream(BufferedOfstream & os,
+                          ThreadProcessIdType globalThreadId,
+                          ThreadProcessIdType localThreadId);
 
   /** Wait for a thread running the prescribed SingleMethod. A similar
    * abstraction needs to be added for MultipleMethod (SpawnThread
@@ -440,6 +477,8 @@ private:
   static unsigned int m_FirstThreadId;
   static unsigned int m_LastThreadId;
   static Barrier::Pointer m_localThreadBarrier;
+  static char ** m_ThreadBuffer;
+  static unsigned int m_BufferSize;
 
   /* Stage number to synchronize processes. Starts from 0 */
   static unsigned long m_CurrentStage;
