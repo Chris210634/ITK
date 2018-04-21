@@ -19,7 +19,6 @@
 #define itkConjugateGradientLineSearchOptimizerv4_hxx
 
 #include "itkConjugateGradientLineSearchOptimizerv4.h"
-#include "itkMultiThreader.h"
 
 namespace itk
 {
@@ -97,10 +96,6 @@ ConjugateGradientLineSearchOptimizerv4Template<TInternalComputationValueType>
   this->m_ConjugateGradient = this->m_Gradient + this->m_ConjugateGradient * gamma;
   this->m_Gradient = this->m_ConjugateGradient;
 
-#ifdef ITK_USE_PARALLEL_PROCESSES
-  MultiThreader::Sync((char*)(&this->m_LearningRate),sizeof(this->m_LearningRate));
-#endif
-  
   /* Estimate a learning rate for this step */
   this->m_LineSearchIterations = 0;
   this->m_LearningRate = this->GoldenSectionSearch( this->m_LearningRate * this->m_LowerLimit ,

@@ -73,7 +73,7 @@ unsigned int MultiThreader::m_NumberOfWorkers  = 0;
 unsigned int MultiThreader::m_ThreadsPerWorker = 0;
 unsigned int MultiThreader::m_FirstThreadId    = 0;
 unsigned int MultiThreader::m_LastThreadId     = 0;
-unsigned int MultiThreader::m_BufferSize       = 1048576;
+unsigned int MultiThreader::m_BufferSize       = 10485760; //10 MiB buffer per thread
 Barrier::Pointer MultiThreader::m_localThreadBarrier = Barrier::New();
 
 // Initialize files with default

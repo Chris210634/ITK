@@ -151,9 +151,6 @@ GradientDescentLineSearchOptimizerv4Template<TInternalComputationValueType>
     this->ModifyGradientByLearningRate();
     this->m_Metric->UpdateTransformParameters( this->m_Gradient );
     metricx = this->GetMetric()->GetValue( );
-#ifdef ITK_USE_PARALLEL_PROCESSES
-    MultiThreader::Sync((char*)(&metricx),sizeof(metricx));
-#endif
 
     /** reset position of transform and gradient */
     this->m_Metric->SetParameters( baseParameters );
@@ -164,9 +161,6 @@ GradientDescentLineSearchOptimizerv4Template<TInternalComputationValueType>
 
     this->m_Metric->UpdateTransformParameters( this->m_Gradient );
     metricb = this->GetMetric()->GetValue( );
-#ifdef ITK_USE_PARALLEL_PROCESSES
-    MultiThreader::Sync((char*)(&metricb),sizeof(metricb));
-#endif
 
     /** reset position of transform and learning rate */
     this->m_Metric->SetParameters( baseParameters );
